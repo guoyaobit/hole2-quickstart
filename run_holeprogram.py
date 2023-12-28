@@ -10,10 +10,11 @@ def run_hole(m_pdb):
         shutil.rmtree(foldername)
     os.mkdir(foldername)
     os.chdir(foldername)
+    home_dir = os.path.expanduser("~")
     subprocess.run(f"cp ../{m_pdb} .", shell=True, check=True, text=True)
     with open("hole.inp","w") as file:
         file.write(f"coord ../{m_pdb}\n")
-        file.write("radius /home/ubuntu/hole2/rad/simple.rad\n")
+        file.write(f"radius {home_dir}/hole2/rad/simple.rad\n")
         file.write("sphpdb hole_out.sph\n")
         file.write("endrad 5.\n")
     command = 'hole < hole.inp > hole_out.txt'
