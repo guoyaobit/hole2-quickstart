@@ -18,11 +18,13 @@ def make_df(data):
 
 
 def launch():
-    cfg = rh.load_pdb_params()
+    # load existing config but restrict to current directory's pdb files
+    existing = rh.load_pdb_params() or {}
     pdb_files = rh.list_pdb_files()
-    for f in pdb_files:
-        if f not in cfg and rh.list_pdb_files and f not in cfg:
-            cfg[f] = {}
+    # Build cfg containing only current pdb files, preserving existing values if present
+    cfg = {p: existing.get(p, {}) for p in pdb_files}
+    # persist the regenerated config
+    rh.save_pdb_params(CONFIG_PATH, cfg)
 
     out_df = widgets.Output()
     with out_df:
@@ -33,11 +35,10 @@ def launch():
     refresh_btn = widgets.Button(description='Refresh PDB list')
 
     def on_refresh(b=None):
-        nonlocal pdb_files
+        nonlocal pdb_files, cfg
         pdb_files = rh.list_pdb_files()
-        for f in pdb_files:
-            if f not in cfg and f not in cfg:
-                cfg[f] = {}
+        cfg = {p: cfg.get(p, {}) for p in pdb_files}
+        rh.save_pdb_params(CONFIG_PATH, cfg)
         sel_multi.options = pdb_files
         with out_df:
             clear_output()
@@ -52,7 +53,6 @@ def launch():
     cpoint_in = widgets.Text(description='CPOINT (csv)')
     cvect_in = widgets.Text(description='CVECT (csv)')
     status = widgets.HTML('')
-    new_name_in = widgets.Text(description='New name')
 
     def parse_csv_list(s):
         if s is None:
@@ -93,42 +93,28 @@ def launch():
             entry['CPOINT'] = cp
         if cv is not None:
             entry['CVECT'] = cv
-        cfg[name] = entry
-        rh.save_pdb_params(CONFIG_PATH, cfg)
-        status.value = '<b style="color:green">Saved</b>'
-        with out_df:
-            clear_output()
-            display(make_df(cfg))
-
-    def add_entry(b):
-        new_name = new_name_in.value.strip()
-        if not new_name:
-            status.value = '<b style="color:red">Provide name</b>'
-            return
-        if new_name in cfg:
-            status.value = '<b style="color:orange">Already exists</b>'
-            return
-        cfg[new_name] = {}
-        rh.save_pdb_params(CONFIG_PATH, cfg)
-        sel.options = sorted(cfg.keys())
-        sel.value = new_name
-        sel_multi.options = rh.list_pdb_files() + tuple(sorted(k for k in cfg.keys() if k not in rh.list_pdb_files()))
-        status.value = '<b style="color:green">Added</b>'
-        with out_df:
-            clear_output()
-            display(make_df(cfg))
+        # only update entry for existing pdbs
+        if name in cfg:
+            cfg[name] = entry
+            rh.save_pdb_params(CONFIG_PATH, cfg)
+            status.value = '<b style="color:green">Saved</b>'
+            with out_df:
+                clear_output()
+                display(make_df(cfg))
+        else:
+            status.value = '<b style="color:red">Selected PDB not in current directory</b>'
 
     def delete_entry(b):
         name = sel.value
         if not name or name not in cfg:
-            status.value = '<b style="color:red">Nothing to delete</b>'
+            status.value = '<b style="color:red">Nothing to clear</b>'
             return
-        del cfg[name]
+        # clear parameters but keep the pdb key (yaml should only include current pdbs)
+        cfg[name] = {}
         rh.save_pdb_params(CONFIG_PATH, cfg)
         sel.options = sorted(cfg.keys())
-        sel.value = None
-        status.value = '<b style="color:green">Deleted</b>'
-        sel_multi.options = rh.list_pdb_files() + tuple(sorted(k for k in cfg.keys() if k not in rh.list_pdb_files()))
+        sel.value = name
+        status.value = '<b style="color:green">Cleared</b>'
         with out_df:
             clear_output()
             display(make_df(cfg))
@@ -151,15 +137,13 @@ def launch():
             status.value = f'<b style="color:red">Error: {e}</b>'
 
     save_btn = widgets.Button(description='Save', button_style='success')
-    add_btn = widgets.Button(description='Add', button_style='info')
-    del_btn = widgets.Button(description='Delete', button_style='danger')
+    del_btn = widgets.Button(description='Clear', button_style='danger')
     proc_btn = widgets.Button(description='Process selected', button_style='primary')
 
     save_btn.on_click(save_entry)
-    add_btn.on_click(add_entry)
     del_btn.on_click(delete_entry)
     proc_btn.on_click(process_selected)
 
-    ui = widgets.VBox([widgets.HBox([sel, new_name_in, add_btn, del_btn]), cpoint_in, cvect_in, widgets.HBox([save_btn, proc_btn, status])])
+    ui = widgets.VBox([widgets.HBox([sel, del_btn]), cpoint_in, cvect_in, widgets.HBox([save_btn, proc_btn, status])])
     display(ui)
     on_select()
