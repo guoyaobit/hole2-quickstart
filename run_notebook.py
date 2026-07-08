@@ -200,9 +200,9 @@ def launch():
                         display(HTML(f"<b style='color:orange'>Plot failed for {pdb}: {e}</b><br><pre>{tb}</pre>"))
                 display(HTML(f"</pre><b style='color:green'>Processing complete. Created: {zip_path}</b>"))
                 status.value = f'<b style="color:green">Done. Zip: {zip_path}</b>'
-        except Exception as e:
-            display(HTML(f"</pre><b style='color:red'>Error: {e}</b>"))
-            status.value = f'<b style="color:red">Error: {e}</b>'
+            except Exception as e:
+                display(HTML(f"</pre><b style='color:red'>Error: {e}</b>"))
+                status.value = f'<b style="color:red">Error: {e}</b>'
 
     save_btn = widgets.Button(description='Save', button_style='success')
     del_btn = widgets.Button(description='Clear', button_style='danger')
