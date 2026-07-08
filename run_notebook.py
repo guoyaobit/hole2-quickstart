@@ -34,6 +34,9 @@ def launch():
         clear_output()
         display(make_df(cfg))
 
+    # output area for processing results (ensures displays appear in the notebook UI)
+    proc_out = widgets.Output()
+
     sel_multi = widgets.SelectMultiple(options=pdb_files, description='To process', rows=8)
     # default select all pdb files
     try:
@@ -60,6 +63,7 @@ def launch():
     refresh_btn.on_click(on_refresh)
     display(widgets.HBox([sel_multi, refresh_btn]))
     display(out_df)
+    display(proc_out)
 
     pdb_names = sorted(cfg.keys())
     sel = widgets.Dropdown(options=pdb_names, description='PDB:')
@@ -138,14 +142,16 @@ def launch():
             status.value = '<b style="color:red">No PDBs selected for processing</b>'
             return
         status.value = '<b style="color:blue">Processing...</b>'
-        display(HTML('<pre>'))
-        try:
-            rh.save_pdb_params(cfg)
-            folders = rh.process_pdbs(targets)
-            zip_path = rh.make_zip_for_folders(folders)
-            # for each folder, attempt to plot and display the result
-            plots = []
-            for fdir, pdb in zip(folders, targets):
+        # show processing output inside the proc_out output widget so it appears in the notebook UI
+        with proc_out:
+            clear_output()
+            try:
+                rh.save_pdb_params(cfg)
+                folders = rh.process_pdbs(targets)
+                zip_path = rh.make_zip_for_folders(folders)
+                # for each folder, attempt to plot and display the result
+                plots = []
+                for fdir, pdb in zip(folders, targets):
                 cv = rh.pdb_params.get(pdb, {}).get('CVECT') if isinstance(rh.pdb_params, dict) else None
                 try:
                     # show folder contents for debugging
