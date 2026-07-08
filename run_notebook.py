@@ -4,6 +4,7 @@ from IPython.display import display, clear_output, HTML
 import pandas as pd
 import os
 import traceback
+import base64
 
 CONFIG_PATH = 'pdb_params.yaml'
 
@@ -162,9 +163,19 @@ def launch():
                             with open(result, 'rb') as _f:
                                 img_bytes = _f.read()
                             _display(Image(data=img_bytes))
+                            # also include HTML <img> with base64 to maximize compatibility
+                            b64 = base64.b64encode(img_bytes).decode('ascii')
+                            display(HTML(f"<div><b>{pdb}</b><br><img src='data:image/png;base64,{b64}' style='max-width:100%;height:auto'/></div>"))
                         except Exception:
-                            # fallback to filename-based display
-                            _display(Image(filename=result))
+                            # fallback to filename-based display and try embedding
+                            try:
+                                _display(Image(filename=result))
+                                with open(result, 'rb') as _f:
+                                    img_bytes = _f.read()
+                                b64 = base64.b64encode(img_bytes).decode('ascii')
+                                display(HTML(f"<div><b>{pdb}</b><br><img src='data:image/png;base64,{b64}' style='max-width:100%;height:auto'/></div>"))
+                            except Exception:
+                                display(HTML(f"<b style='color:orange'>Could not display PNG for {pdb}</b>"))
                     elif isinstance(result, str) and result.lower().endswith('.csv'):
                         # matplotlib not available; show CSV preview and download link
                         try:
