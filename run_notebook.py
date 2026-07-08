@@ -2,6 +2,7 @@ import run_holeprogram as rh
 import ipywidgets as widgets
 from IPython.display import display, clear_output, HTML
 import pandas as pd
+import os
 
 CONFIG_PATH = 'pdb_params.yaml'
 
@@ -145,6 +146,13 @@ def launch():
             for fdir, pdb in zip(folders, targets):
                 cv = rh.pdb_params.get(pdb, {}).get('CVECT') if isinstance(rh.pdb_params, dict) else None
                 try:
+                    # show folder contents for debugging
+                    try:
+                        files = os.listdir(fdir)
+                        display(HTML(f"<b>Result folder: {fdir}</b><br>Files: {', '.join(files)}</br>"))
+                    except Exception as e:
+                        display(HTML(f"<b style='color:orange'>Could not list files in {fdir}: {e}</b>"))
+
                     result, _ = rh.plot_tsv(fdir, cvect=cv)
                     from IPython.display import Image, display as _display
                     if isinstance(result, str) and result.lower().endswith('.png'):
