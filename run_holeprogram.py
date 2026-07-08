@@ -122,11 +122,23 @@ def _run_pair(arg):
     return run_hole(pdb, params)
 
 
-def process_pdbs(pdb_list, workers=1):
+def process_pdbs(pdb_list, workers=None):
     """Process a list of pdb filenames (relative to current_path). Returns list of output folder paths.
 
-    If workers > 1, uses multiprocessing.Pool to process in parallel.
+    If workers is None, automatically choose min(len(pdb_list), cpu_count).
+    If workers <= 1, processing is sequential to avoid multiprocessing overhead.
     """
+    if not pdb_list:
+        return []
+
+    # auto-select workers if not provided
+    if workers is None:
+        try:
+            cpu = os.cpu_count() or 1
+        except Exception:
+            cpu = 1
+        workers = min(len(pdb_list), cpu)
+
     if workers and workers > 1:
         from multiprocessing import Pool
         args = [(pdb, get_params_for(pdb)) for pdb in pdb_list]
@@ -134,6 +146,7 @@ def process_pdbs(pdb_list, workers=1):
             results = pool.map(_run_pair, args)
         return results
 
+    # sequential fallback
     results = []
     for pdb in pdb_list:
         params = get_params_for(pdb)
