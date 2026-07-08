@@ -63,7 +63,7 @@ def launch():
     refresh_btn.on_click(on_refresh)
     display(widgets.HBox([sel_multi, refresh_btn]))
     display(out_df)
-    display(proc_out)
+    # proc_out will be displayed below the Process button so results appear after the UI
 
     pdb_names = sorted(cfg.keys())
     sel = widgets.Dropdown(options=pdb_names, description='PDB:')
@@ -165,23 +165,13 @@ def launch():
                         from IPython.display import Image, display as _display
                         if isinstance(result, str) and result.lower().endswith('.png'):
                             try:
-                                # embed image bytes so it displays even if file path isn't accessible to the notebook server
+                                # embed image as a single base64 <img> for compatibility
                                 with open(result, 'rb') as _f:
                                     img_bytes = _f.read()
-                                _display(Image(data=img_bytes))
-                                # also include HTML <img> with base64 to maximize compatibility
                                 b64 = base64.b64encode(img_bytes).decode('ascii')
                                 display(HTML(f"<div><b>{pdb}</b><br><img src='data:image/png;base64,{b64}' style='max-width:100%;height:auto'/></div>"))
                             except Exception:
-                                # fallback to filename-based display and try embedding
-                                try:
-                                    _display(Image(filename=result))
-                                    with open(result, 'rb') as _f:
-                                        img_bytes = _f.read()
-                                    b64 = base64.b64encode(img_bytes).decode('ascii')
-                                    display(HTML(f"<div><b>{pdb}</b><br><img src='data:image/png;base64,{b64}' style='max-width:100%;height:auto'/></div>"))
-                                except Exception:
-                                    display(HTML(f"<b style='color:orange'>Could not display PNG for {pdb}</b>"))
+                                display(HTML(f"<b style='color:orange'>Could not read PNG for {pdb}: {result}</b>"))
                         elif isinstance(result, str) and result.lower().endswith('.csv'):
                             # matplotlib not available; show CSV preview and download link
                             try:
@@ -214,4 +204,6 @@ def launch():
 
     ui = widgets.VBox([widgets.HBox([sel, del_btn]), cpoint_in, cvect_in, widgets.HBox([save_btn, proc_btn, status])])
     display(ui)
+    # show processing output area directly under the UI so results appear below the Process button
+    display(proc_out)
     on_select()
