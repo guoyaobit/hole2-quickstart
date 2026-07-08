@@ -1,7 +1,10 @@
 import os
 import subprocess
 import shutil
-import pexpect
+try:
+    import pexpect
+except Exception:
+    pexpect = None
 try:
     import yaml
 except Exception:
