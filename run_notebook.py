@@ -140,6 +140,17 @@ def launch():
             rh.save_pdb_params(cfg)
             folders = rh.process_pdbs(targets)
             zip_path = rh.make_zip_for_folders(folders)
+            # for each folder, attempt to plot and display the result
+            plots = []
+            for fdir, pdb in zip(folders, targets):
+                cv = rh.pdb_params.get(pdb, {}).get('CVECT') if isinstance(rh.pdb_params, dict) else None
+                try:
+                    img, _ = rh.plot_tsv(fdir, cvect=cv)
+                    from IPython.display import Image, display as _display
+                    _display(Image(filename=img))
+                except Exception as e:
+                    # show warning text
+                    display(HTML(f"<b style='color:orange'>Plot failed for {pdb}: {e}</b>"))
             display(HTML(f"</pre><b style='color:green'>Processing complete. Created: {zip_path}</b>"))
             status.value = f'<b style="color:green">Done. Zip: {zip_path}</b>'
         except Exception as e:

@@ -178,6 +178,116 @@ def make_zip_for_folders(folders, out_name=None):
     return out_path
 
 
+def plot_tsv(folderpath, cvect=None, out_name=None, show_plot=False):
+    """Read hole_out.tsv in folderpath, compute abscissa and plot radius vs abscissa.
+
+    - cvect: iterable of 3 numbers (channel vector). If provided, abscissa = dot(center, cvect).
+      Otherwise abscissa = cumulative distance along centre-line.
+    - out_name: optional PNG filename (written inside folderpath). If omitted, uses 'hole_plot.png'.
+    - show_plot: if True and matplotlib backend supports it, show interactively (not used here).
+
+    Returns path to saved PNG and the (x,y) arrays.
+    """
+    import math
+    try:
+        import matplotlib
+n    except Exception:
+        matplotlib = None
+    try:
+        import matplotlib.pyplot as plt
+    except Exception:
+        plt = None
+
+    tsv = os.path.join(folderpath, 'hole_out.tsv')
+    if not os.path.exists(tsv):
+        raise FileNotFoundError(f"{tsv} not found")
+
+    centers = []
+    radii = []
+    with open(tsv, 'r') as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            # extract floats from the line
+            parts = []
+            for tok in line.split():
+                try:
+                    parts.append(float(tok))
+                except Exception:
+                    # ignore non-numeric tokens
+                    pass
+            if len(parts) < 4:
+                continue
+            x, y, z, r = parts[0], parts[1], parts[2], parts[3]
+            centers.append((x, y, z))
+            radii.append(r)
+
+    if not centers:
+        raise ValueError(f"No numeric data parsed from {tsv}")
+
+    if cvect:
+        # normalize cvect
+        try:
+            vx, vy, vz = float(cvect[0]), float(cvect[1]), float(cvect[2])
+            norm = math.sqrt(vx*vx + vy*vy + vz*vz)
+            if norm == 0:
+                raise ValueError('CVECT has zero length')
+            vx, vy, vz = vx/norm, vy/norm, vz/norm
+            xs = [c[0]*vx + c[1]*vy + c[2]*vz for c in centers]
+            xlabel = 'Channel coordinate (dot(center, CVECT))'
+        except Exception:
+            # fallback to cumulative distance
+            xs = []
+            total = 0.0
+            prev = centers[0]
+            xs.append(0.0)
+            for c in centers[1:]:
+                d = math.sqrt((c[0]-prev[0])**2 + (c[1]-prev[1])**2 + (c[2]-prev[2])**2)
+                total += d
+                xs.append(total)
+                prev = c
+            xlabel = 'Distance along centre-line (Angstrom)'
+    else:
+        xs = []
+        total = 0.0
+        prev = centers[0]
+        xs.append(0.0)
+        for c in centers[1:]:
+            d = math.sqrt((c[0]-prev[0])**2 + (c[1]-prev[1])**2 + (c[2]-prev[2])**2)
+            total += d
+            xs.append(total)
+            prev = c
+        xlabel = 'Distance along centre-line (Angstrom)'
+
+    # plotting
+    if out_name is None:
+        out_name = 'hole_plot.png'
+    out_path = os.path.join(folderpath, out_name)
+
+    if plt is None:
+        # matplotlib not available, write data as CSV for external plotting
+        data_path = os.path.join(folderpath, 'hole_plot_data.csv')
+        with open(data_path, 'w') as fh:
+            fh.write('x,radius\n')
+            for xi, ri in zip(xs, radii):
+                fh.write(f"{xi},{ri}\n")
+        return data_path, (xs, radii)
+
+    plt.figure(figsize=(6,4))
+    plt.plot(xs, radii, '-o')
+    plt.xlabel(xlabel)
+    plt.ylabel('Radius (Angstrom)')
+    plt.title(os.path.basename(folderpath))
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig(out_path)
+    if show_plot:
+        plt.show()
+    plt.close()
+    return out_path, (xs, radii)
+
+
 if __name__ == '__main__':
     # default behavior: load params, list pdbs and process all
     load_pdb_params()
