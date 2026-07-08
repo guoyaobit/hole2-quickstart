@@ -156,7 +156,14 @@ def launch():
                     result, _ = rh.plot_tsv(fdir, cvect=cv)
                     from IPython.display import Image, display as _display
                     if isinstance(result, str) and result.lower().endswith('.png'):
-                        _display(Image(filename=result))
+                        try:
+                            # embed image bytes so it displays even if file path isn't accessible to the notebook server
+                            with open(result, 'rb') as _f:
+                                img_bytes = _f.read()
+                            _display(Image(data=img_bytes))
+                        except Exception:
+                            # fallback to filename-based display
+                            _display(Image(filename=result))
                     elif isinstance(result, str) and result.lower().endswith('.csv'):
                         # matplotlib not available; show CSV preview and download link
                         try:
