@@ -1,0 +1,9 @@
+# Example per-PDB parameters. Edit this file in Jupyter Notebook or any editor.
+# Keys can be full file names (e.g., R5A.pdb) or basenames without extension (e.g., R7A).
+
+R5A.pdb:
+  CPOINT: [124.459, 125.13, 127.348]
+  CVECT: [-21.3015, 4.9035, -22.1275]
+
+R7A:
+  CPOINT: [1.0, 2.0, 3.0]
