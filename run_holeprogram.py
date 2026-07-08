@@ -80,11 +80,20 @@ config_path = os.path.join(current_path, "pdb_params.yaml")
 pdb_params = {}
 
 def save_pdb_params(path, params):
+    """Save params dict to YAML and update the in-memory pdb_params.
+    Path may be relative; resolve against current_path."""
+    global pdb_params
     if yaml is None:
         print("PyYAML not installed; cannot save YAML config. Install with `pip install pyyaml`.")
         return
-    with open(path, "w") as out:
-        yaml.safe_dump(params, out)
+    full_path = path if os.path.isabs(path) else os.path.join(current_path, path)
+    try:
+        with open(full_path, "w") as out:
+            yaml.safe_dump(params, out)
+        # update in-memory copy so subsequent get_params_for sees changes
+        pdb_params = dict(params)
+    except Exception as e:
+        print(f"Failed to save {full_path}: {e}")
 
 
 def load_pdb_params(path=None):
