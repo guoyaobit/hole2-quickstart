@@ -191,7 +191,7 @@ def plot_tsv(folderpath, cvect=None, out_name=None, show_plot=False):
     import math
     try:
         import matplotlib
-n    except Exception:
+    except Exception:
         matplotlib = None
     try:
         import matplotlib.pyplot as plt
