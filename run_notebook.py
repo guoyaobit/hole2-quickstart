@@ -23,8 +23,8 @@ def launch():
     pdb_files = rh.list_pdb_files()
     # Build cfg containing only current pdb files, preserving existing values if present
     cfg = {p: existing.get(p, {}) for p in pdb_files}
-    # persist the regenerated config
-    rh.save_pdb_params(CONFIG_PATH, cfg)
+    # persist the regenerated config (in-memory)
+    rh.save_pdb_params(cfg)
 
     out_df = widgets.Output()
     with out_df:
@@ -38,7 +38,7 @@ def launch():
         nonlocal pdb_files, cfg
         pdb_files = rh.list_pdb_files()
         cfg = {p: cfg.get(p, {}) for p in pdb_files}
-        rh.save_pdb_params(CONFIG_PATH, cfg)
+        rh.save_pdb_params(cfg)
         sel_multi.options = pdb_files
         with out_df:
             clear_output()
@@ -96,7 +96,7 @@ def launch():
         # only update entry for existing pdbs
         if name in cfg:
             cfg[name] = entry
-            rh.save_pdb_params(CONFIG_PATH, cfg)
+            rh.save_pdb_params(cfg)
             status.value = '<b style="color:green">Saved</b>'
             with out_df:
                 clear_output()
@@ -111,7 +111,7 @@ def launch():
             return
         # clear parameters but keep the pdb key (yaml should only include current pdbs)
         cfg[name] = {}
-        rh.save_pdb_params(CONFIG_PATH, cfg)
+        rh.save_pdb_params(cfg)
         sel.options = sorted(cfg.keys())
         sel.value = name
         status.value = '<b style="color:green">Cleared</b>'
@@ -127,7 +127,7 @@ def launch():
         status.value = '<b style="color:blue">Processing...</b>'
         display(HTML('<pre>'))
         try:
-            rh.save_pdb_params(CONFIG_PATH, cfg)
+            rh.save_pdb_params(cfg)
             folders = rh.process_pdbs(targets)
             zip_path = rh.make_zip_for_folders(folders)
             display(HTML(f"</pre><b style='color:green'>Processing complete. Created: {zip_path}</b>"))

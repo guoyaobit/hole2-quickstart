@@ -79,37 +79,32 @@ current_path = os.getcwd()
 config_path = os.path.join(current_path, "pdb_params.yaml")
 pdb_params = {}
 
-def save_pdb_params(path, params):
-    """Save params dict to YAML and update the in-memory pdb_params.
-    Path may be relative; resolve against current_path."""
+def save_pdb_params(params):
+    """Store params dict in-memory only (no YAML file). Updates module-level pdb_params."""
     global pdb_params
-    if yaml is None:
-        print("PyYAML not installed; cannot save YAML config. Install with `pip install pyyaml`.")
-        return
-    full_path = path if os.path.isabs(path) else os.path.join(current_path, path)
-    try:
-        with open(full_path, "w") as out:
-            yaml.safe_dump(params, out)
-        # update in-memory copy so subsequent get_params_for sees changes
-        pdb_params = dict(params)
-    except Exception as e:
-        print(f"Failed to save {full_path}: {e}")
+    pdb_params = dict(params or {})
+    return pdb_params
 
 
-def load_pdb_params(path=None):
+def load_pdb_params():
+    """Initialize in-memory pdb_params based on current directory PDB files.
+
+    Preserves existing values for matching filenames or basenames if present in the current in-memory pdb_params.
+    """
     global pdb_params
-    path = path or config_path
-    pdb_params = {}
-    if os.path.exists(path):
-        if yaml is None:
-            print(f"Found {path} but PyYAML not installed; skipping load.")
+    current = pdb_params if isinstance(pdb_params, dict) else {}
+    files = list_pdb_files()
+    new = {}
+    for p in files:
+        if p in current:
+            new[p] = current[p]
         else:
-            with open(path, "r") as cf:
-                try:
-                    loaded = yaml.safe_load(cf)
-                    pdb_params = loaded if isinstance(loaded, dict) else {}
-                except Exception as e:
-                    print(f"Failed to load {path}: {e}")
+            base = os.path.splitext(p)[0]
+            if base in current:
+                new[p] = current[base]
+            else:
+                new[p] = {}
+    pdb_params = new
     return pdb_params
 
 
