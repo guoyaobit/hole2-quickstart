@@ -152,54 +152,54 @@ def launch():
                 # for each folder, attempt to plot and display the result
                 plots = []
                 for fdir, pdb in zip(folders, targets):
-                cv = rh.pdb_params.get(pdb, {}).get('CVECT') if isinstance(rh.pdb_params, dict) else None
-                try:
-                    # show folder contents for debugging
+                    cv = rh.pdb_params.get(pdb, {}).get('CVECT') if isinstance(rh.pdb_params, dict) else None
                     try:
-                        files = os.listdir(fdir)
-                        display(HTML(f"<b>Result folder: {fdir}</b><br>Files: {', '.join(files)}</br>"))
-                    except Exception as e:
-                        display(HTML(f"<b style='color:orange'>Could not list files in {fdir}: {e}</b>"))
-
-                    result, _ = rh.plot_tsv(fdir, cvect=cv)
-                    from IPython.display import Image, display as _display
-                    if isinstance(result, str) and result.lower().endswith('.png'):
+                        # show folder contents for debugging
                         try:
-                            # embed image bytes so it displays even if file path isn't accessible to the notebook server
-                            with open(result, 'rb') as _f:
-                                img_bytes = _f.read()
-                            _display(Image(data=img_bytes))
-                            # also include HTML <img> with base64 to maximize compatibility
-                            b64 = base64.b64encode(img_bytes).decode('ascii')
-                            display(HTML(f"<div><b>{pdb}</b><br><img src='data:image/png;base64,{b64}' style='max-width:100%;height:auto'/></div>"))
-                        except Exception:
-                            # fallback to filename-based display and try embedding
+                            files = os.listdir(fdir)
+                            display(HTML(f"<b>Result folder: {fdir}</b><br>Files: {', '.join(files)}</br>"))
+                        except Exception as e:
+                            display(HTML(f"<b style='color:orange'>Could not list files in {fdir}: {e}</b>"))
+
+                        result, _ = rh.plot_tsv(fdir, cvect=cv)
+                        from IPython.display import Image, display as _display
+                        if isinstance(result, str) and result.lower().endswith('.png'):
                             try:
-                                _display(Image(filename=result))
+                                # embed image bytes so it displays even if file path isn't accessible to the notebook server
                                 with open(result, 'rb') as _f:
                                     img_bytes = _f.read()
+                                _display(Image(data=img_bytes))
+                                # also include HTML <img> with base64 to maximize compatibility
                                 b64 = base64.b64encode(img_bytes).decode('ascii')
                                 display(HTML(f"<div><b>{pdb}</b><br><img src='data:image/png;base64,{b64}' style='max-width:100%;height:auto'/></div>"))
                             except Exception:
-                                display(HTML(f"<b style='color:orange'>Could not display PNG for {pdb}</b>"))
-                    elif isinstance(result, str) and result.lower().endswith('.csv'):
-                        # matplotlib not available; show CSV preview and download link
-                        try:
-                            df_preview = pd.read_csv(result)
-                            display(HTML(f"<b>{pdb} (CSV fallback)</b>"))
-                            display(df_preview.head(20))
-                            display(HTML(f"<a href='{result}'>Download CSV</a>"))
-                        except Exception:
-                            display(HTML(f"<b>CSV generated at {result}</b>"))
-                    else:
-                        # unknown result type; just echo
-                        display(HTML(f"<b>Plot result: {result}</b>"))
-                except Exception as e:
-                    # show warning text with full traceback for debugging
-                    tb = traceback.format_exc()
-                    display(HTML(f"<b style='color:orange'>Plot failed for {pdb}: {e}</b><br><pre>{tb}</pre>"))
-            display(HTML(f"</pre><b style='color:green'>Processing complete. Created: {zip_path}</b>"))
-            status.value = f'<b style="color:green">Done. Zip: {zip_path}</b>'
+                                # fallback to filename-based display and try embedding
+                                try:
+                                    _display(Image(filename=result))
+                                    with open(result, 'rb') as _f:
+                                        img_bytes = _f.read()
+                                    b64 = base64.b64encode(img_bytes).decode('ascii')
+                                    display(HTML(f"<div><b>{pdb}</b><br><img src='data:image/png;base64,{b64}' style='max-width:100%;height:auto'/></div>"))
+                                except Exception:
+                                    display(HTML(f"<b style='color:orange'>Could not display PNG for {pdb}</b>"))
+                        elif isinstance(result, str) and result.lower().endswith('.csv'):
+                            # matplotlib not available; show CSV preview and download link
+                            try:
+                                df_preview = pd.read_csv(result)
+                                display(HTML(f"<b>{pdb} (CSV fallback)</b>"))
+                                display(df_preview.head(20))
+                                display(HTML(f"<a href='{result}'>Download CSV</a>"))
+                            except Exception:
+                                display(HTML(f"<b>CSV generated at {result}</b>"))
+                        else:
+                            # unknown result type; just echo
+                            display(HTML(f"<b>Plot result: {result}</b>"))
+                    except Exception as e:
+                        # show warning text with full traceback for debugging
+                        tb = traceback.format_exc()
+                        display(HTML(f"<b style='color:orange'>Plot failed for {pdb}: {e}</b><br><pre>{tb}</pre>"))
+                display(HTML(f"</pre><b style='color:green'>Processing complete. Created: {zip_path}</b>"))
+                status.value = f'<b style="color:green">Done. Zip: {zip_path}</b>'
         except Exception as e:
             display(HTML(f"</pre><b style='color:red'>Error: {e}</b>"))
             status.value = f'<b style="color:red">Error: {e}</b>'
