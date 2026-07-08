@@ -3,6 +3,7 @@ import ipywidgets as widgets
 from IPython.display import display, clear_output, HTML
 import pandas as pd
 import os
+import traceback
 
 CONFIG_PATH = 'pdb_params.yaml'
 
@@ -177,8 +178,9 @@ def launch():
                         # unknown result type; just echo
                         display(HTML(f"<b>Plot result: {result}</b>"))
                 except Exception as e:
-                    # show warning text
-                    display(HTML(f"<b style='color:orange'>Plot failed for {pdb}: {e}</b>"))
+                    # show warning text with full traceback for debugging
+                    tb = traceback.format_exc()
+                    display(HTML(f"<b style='color:orange'>Plot failed for {pdb}: {e}</b><br><pre>{tb}</pre>"))
             display(HTML(f"</pre><b style='color:green'>Processing complete. Created: {zip_path}</b>"))
             status.value = f'<b style="color:green">Done. Zip: {zip_path}</b>'
         except Exception as e:
