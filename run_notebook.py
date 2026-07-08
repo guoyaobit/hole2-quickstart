@@ -32,6 +32,12 @@ def launch():
         display(make_df(cfg))
 
     sel_multi = widgets.SelectMultiple(options=pdb_files, description='To process', rows=8)
+    # default select all pdb files
+    try:
+        sel_multi.value = tuple(pdb_files)
+    except Exception:
+        # some widget frontends may not accept setting value before display
+        pass
     refresh_btn = widgets.Button(description='Refresh PDB list')
 
     def on_refresh(b=None):
@@ -40,6 +46,10 @@ def launch():
         cfg = {p: cfg.get(p, {}) for p in pdb_files}
         rh.save_pdb_params(cfg)
         sel_multi.options = pdb_files
+        try:
+            sel_multi.value = tuple(pdb_files)
+        except Exception:
+            pass
         with out_df:
             clear_output()
             display(make_df(cfg))
