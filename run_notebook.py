@@ -145,9 +145,22 @@ def launch():
             for fdir, pdb in zip(folders, targets):
                 cv = rh.pdb_params.get(pdb, {}).get('CVECT') if isinstance(rh.pdb_params, dict) else None
                 try:
-                    img, _ = rh.plot_tsv(fdir, cvect=cv)
+                    result, _ = rh.plot_tsv(fdir, cvect=cv)
                     from IPython.display import Image, display as _display
-                    _display(Image(filename=img))
+                    if isinstance(result, str) and result.lower().endswith('.png'):
+                        _display(Image(filename=result))
+                    elif isinstance(result, str) and result.lower().endswith('.csv'):
+                        # matplotlib not available; show CSV preview and download link
+                        try:
+                            df_preview = pd.read_csv(result)
+                            display(HTML(f"<b>{pdb} (CSV fallback)</b>"))
+                            display(df_preview.head(20))
+                            display(HTML(f"<a href='{result}'>Download CSV</a>"))
+                        except Exception:
+                            display(HTML(f"<b>CSV generated at {result}</b>"))
+                    else:
+                        # unknown result type; just echo
+                        display(HTML(f"<b>Plot result: {result}</b>"))
                 except Exception as e:
                     # show warning text
                     display(HTML(f"<b style='color:orange'>Plot failed for {pdb}: {e}</b>"))
