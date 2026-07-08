@@ -194,6 +194,11 @@ def plot_tsv(folderpath, cvect=None, out_name=None, show_plot=False):
     import math
     try:
         import matplotlib
+        try:
+            matplotlib.use('Agg')
+        except Exception:
+            # ignore if backend can't be set
+            pass
     except Exception:
         matplotlib = None
     try:
