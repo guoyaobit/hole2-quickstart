@@ -31,8 +31,20 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push image to GHCR
+        id: build
         uses: docker/build-push-action@v6
         with:
+          context: .
+          file: Dockerfile
           push: true
+          platforms: linux/amd64,linux/arm64
           tags: |
             ghcr.io/${{ github.repository }}:latest
+
+      - name: Show pushed image info
+        run: |
+          echo "Pushed image tags: ghcr.io/${{ github.repository }}:latest"
+          echo "Image digest: ${{ steps.build.outputs.digest }}"
+          # expose digest as job output for other jobs to consume
+          echo "image_digest=${{ steps.build.outputs.digest }}" >> $GITHUB_OUTPUT
+          echo "image_ref=ghcr.io/${{ github.repository }}:latest" >> $GITHUB_OUTPUT
