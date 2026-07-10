@@ -50,11 +50,12 @@ def run_hole(m_pdb, params=None):
                 file.write("CVECT " + " ".join(map(str, cvect)) + "\n")
 
     # run commands with working directory set to folderpath
-    def run(cmd, **kwargs):
-        return subprocess.run(cmd, shell=True, check=True, text=True, cwd=folderpath, **kwargs)
+    def run(cmd, check=True, **kwargs):
+        return subprocess.run(cmd, shell=True, check=check, text=True, cwd=folderpath, **kwargs)
 
     run('hole < hole.inp > hole_out.txt')
-    run('egrep "mid-|sampled" hole_out.txt > hole_out.tsv')
+    # egrep may exit with code 1 when there are no matches; allow that without failing the whole run
+    run('egrep "mid-|sampled" hole_out.txt > hole_out.tsv', check=False)
     run('sph_process -dotden 15 -color hole_out.sph dotsurface.qpt')
 
     # qpt_conv expects interactive input; run via pexpect in folderpath
