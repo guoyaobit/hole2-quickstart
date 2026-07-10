@@ -16,7 +16,7 @@ conda install -c conda-forge hole2
 - Docker (local / CI): a Dockerfile and docker-compose.yml are included for containerized runs. This is useful if you don't want to install HOLE locally or prefer reproducible environments.
 
   docker compose up --build
-  # Open http://localhost:8888 and run run.ipynb
+  # Open http://localhost:8888 (Jupyter Lab) and open run.ipynb
 
 HOLE installation
 
@@ -25,7 +25,7 @@ The preferred way to install the HOLE toolchain is via conda (conda-forge). The 
 Usage (Jupyter notebook)
 
 1. Put your .pdb files in the repo root directory.
-2. Start Jupyter and open run.ipynb (the containerized image also exposes Jupyter on port 8888).
+2. Start Jupyter Lab and open run.ipynb (the containerized image also exposes Jupyter Lab on port 8888).
 3. Run the cell to launch the interactive UI (it calls run_notebook.launch()).
 4. Edit per-PDB CPOINT / CVECT values in the UI (saved in memory), then click "Process selected".
 

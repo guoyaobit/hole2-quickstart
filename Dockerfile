@@ -14,7 +14,7 @@ RUN conda update -n base -c defaults conda -y \
     pandas \
     ipywidgets \
     pexpect \
-    jupyter \
+    jupyterlab \
  && conda clean -afy
 
 ENV PATH="/opt/conda/bin:${PATH}"
@@ -22,4 +22,4 @@ ENV PATH="/opt/conda/bin:${PATH}"
 EXPOSE 8888
 
 # Default: start Jupyter Notebook so the existing run.ipynb can be used in container
-CMD ["jupyter", "notebook", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root"]
+CMD ["jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root"]

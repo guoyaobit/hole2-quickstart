@@ -9,5 +9,5 @@ services:
       - ./:/app
     environment:
       - PYTHONUNBUFFERED=1
-    # By default start Jupyter so the notebook UI is available
-    command: jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser --allow-root
+    # By default start Jupyter Lab so the notebook UI is available
+    command: jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root
