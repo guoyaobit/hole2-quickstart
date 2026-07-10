@@ -6,10 +6,12 @@ Quick options
 
 - Recommended (Conda): create a conda environment and install hole2 from conda-forge (preferred):
 
-  conda create -n hole2 python=3.11 -y
-  conda activate hole2
-  conda install matplotlib pandas ipywidgets -y
-  conda install -c conda-forge hole2
+```bash
+conda create -n hole2 python=3.11 -y
+conda activate hole2
+conda install matplotlib pandas ipywidgets -y
+conda install -c conda-forge hole2
+```
 
 - Docker (local / CI): a Dockerfile and docker-compose.yml are included for containerized runs. This is useful if you don't want to install HOLE locally or prefer reproducible environments.
 
@@ -35,5 +37,5 @@ What the UI does
 
 Notes
 
-- If you use the Docker image, the HOLE binaries are installed in the image and available in PATH.
+- Docker image installs the HOLE toolchain via conda (conda-forge) and exposes Jupyter on port 8888.
 - CI workflow builds and pushes a container image to ghcr.io/${{ github.repository }}:latest (see .github/workflows/docker-image.yml).

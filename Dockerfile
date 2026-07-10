@@ -1,25 +1,23 @@
-FROM python:3.11-slim
-
-ENV DEBIAN_FRONTEND=noninteractive
-
-RUN apt-get update \
- && apt-get install -y --no-install-recommends wget ca-certificates tar gzip \
- && rm -rf /var/lib/apt/lists/*
+FROM condaforge/mambaforge:latest
 
 WORKDIR /app
 
-# Copy project files
+# Copy project files early for rebuildability
 COPY . /app
 
-# Python deps used by the project (adjust if you add requirements file)
-RUN pip install --no-cache-dir matplotlib pandas ipywidgets pexpect PyYAML
+# Install HOLE and Python deps via conda (conda-forge) for reproducible environment
+# Use mamba (installed in mambaforge) for speed
+RUN mamba install -y -c conda-forge \
+    python=3.11 \
+    hole2 \
+    matplotlib \
+    pandas \
+    ipywidgets \
+    pexpect \
+    jupyter \
+  && mamba clean -afy
 
-# Install HOLE toolchain (matches install_hole.sh)
-RUN wget -O /tmp/hole2.tar.gz http://www.holeprogram.org/downloads/2.2.005/hole2-ApacheLicense-2.2.005-Linux-x86_64.tar.gz \
- && tar xf /tmp/hole2.tar.gz -C /root/ \
- && rm /tmp/hole2.tar.gz
-
-ENV PATH="/root/hole2/exe:${PATH}"
+ENV PATH="/opt/conda/bin:${PATH}"
 
 EXPOSE 8888
 
