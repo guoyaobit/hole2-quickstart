@@ -37,7 +37,7 @@ What the UI does
 
 Notes
 
-- Docker image installs the HOLE toolchain via conda (conda-forge) and exposes Jupyter on port 8888.
+- Docker image contains the HOLE toolchain installed under /root/hole2 and exposes Jupyter Lab on port 8888.
 - CI workflow builds and pushes a container image to ghcr.io/${{ github.repository }}:latest (see .github/workflows/docker-image.yml).
 
 Using the GHCR image
@@ -48,7 +48,7 @@ Pull the latest image from GitHub Container Registry:
 docker pull ghcr.io/guoyaobit/hole2-quickstart:latest
 ```
 
-Run the notebook (maps current dir, exposes Jupyter on 8888):
+Run Jupyter Lab (maps current dir, exposes Jupyter Lab on 8888):
 
 ```bash
 # Linux / macOS
@@ -75,6 +75,7 @@ echo "YOUR_PAT" | docker login ghcr.io -u YOUR_GH_USERNAME --password-stdin
 
 Tips
 
+- The HOLE binaries are installed at /root/hole2/exe inside the container and are on PATH.
 - To run containers as your local user (avoid file permission issues), add `-u $(id -u):$(id -g)` on Linux.
 - Use the included docker-compose.yml for local development: `docker compose up --build`.
 - To run a detached container: `docker run -d --name hole2 -p 8888:8888 -v "$(pwd)":/app ghcr.io/guoyaobit/hole2-quickstart:latest`.

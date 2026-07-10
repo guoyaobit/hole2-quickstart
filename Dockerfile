@@ -12,12 +12,12 @@ WORKDIR /tmp
 
 # Upgrade pip and install Python packages into the image's /usr/local (default)
 RUN pip install --no-cache-dir --upgrade pip \
- && pip install --no-cache-dir matplotlib pandas ipywidgets pexpect PyYAML jupyter
+ && pip install --no-cache-dir matplotlib pandas ipywidgets pexpect PyYAML jupyterlab
 
-# Download and extract HOLE into /opt/hole2
+# Download and extract HOLE into /root/hole2
 RUN wget -O /tmp/hole2.tar.gz http://www.holeprogram.org/downloads/2.2.005/hole2-ApacheLicense-2.2.005-Linux-x86_64.tar.gz \
- && mkdir -p /opt/hole2 \
- && tar xf /tmp/hole2.tar.gz -C /opt \
+ && mkdir -p /root/hole2 \
+ && tar xf /tmp/hole2.tar.gz -C /root \
  && rm -f /tmp/hole2.tar.gz
 
 # Final image: start from a clean slim image and copy only the runtime artifacts
@@ -29,15 +29,15 @@ WORKDIR /app
 
 # Copy installed Python packages and HOLE binaries from the builder stage
 COPY --from=builder /usr/local /usr/local
-COPY --from=builder /opt/hole2 /opt/hole2
+COPY --from=builder /root/hole2 /root/hole2
 
 # Copy project source into /app
 COPY . /app
 
 # Ensure HOLE binaries are on PATH
-ENV PATH="/opt/hole2/exe:${PATH}"
+ENV PATH="/root/hole2/exe:${PATH}"
 
 EXPOSE 8888
 
-# Default: start Jupyter Notebook so users open run.ipynb in the browser
-CMD ["jupyter", "notebook", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root"]
+# Default: start Jupyter Lab so users open run.ipynb in the browser
+CMD ["jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root"]
