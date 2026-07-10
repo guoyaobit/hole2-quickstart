@@ -1,25 +1,38 @@
-FROM python:3.12-slim
+# Multi-stage build: install deps and HOLE in builder, copy only runtime files into final image
+FROM python:3.12-slim AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install minimal OS tools for downloading and extracting the HOLE tarball
+# Minimal tools to download and extract HOLE
 RUN apt-get update \
  && apt-get install -y --no-install-recommends wget ca-certificates tar gzip \
  && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
+WORKDIR /tmp
 
-# Copy project files into the image (image will contain source in /app)
-COPY . /app
+# Upgrade pip and install Python packages into the image's /usr/local (default)
+RUN pip install --no-cache-dir --upgrade pip \
+ && pip install --no-cache-dir matplotlib pandas ipywidgets pexpect PyYAML jupyter
 
-# Install Python dependencies and Jupyter Notebook via pip to keep image small
-RUN pip install --no-cache-dir matplotlib pandas ipywidgets pexpect PyYAML jupyter
-
-# Install HOLE toolchain from official tarball into /opt/hole2 (static binaries)
+# Download and extract HOLE into /opt/hole2
 RUN wget -O /tmp/hole2.tar.gz http://www.holeprogram.org/downloads/2.2.005/hole2-ApacheLicense-2.2.005-Linux-x86_64.tar.gz \
  && mkdir -p /opt/hole2 \
  && tar xf /tmp/hole2.tar.gz -C /opt \
  && rm -f /tmp/hole2.tar.gz
+
+# Final image: start from a clean slim image and copy only the runtime artifacts
+FROM python:3.12-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+WORKDIR /app
+
+# Copy installed Python packages and HOLE binaries from the builder stage
+COPY --from=builder /usr/local /usr/local
+COPY --from=builder /opt/hole2 /opt/hole2
+
+# Copy project source into /app
+COPY . /app
 
 # Ensure HOLE binaries are on PATH
 ENV PATH="/opt/hole2/exe:${PATH}"
