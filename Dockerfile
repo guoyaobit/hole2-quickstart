@@ -1,21 +1,21 @@
-FROM condaforge/mambaforge:latest
+FROM continuumio/miniconda3:latest
 
 WORKDIR /app
 
-# Copy project files early for rebuildability
+# Copy project files
 COPY . /app
 
-# Install HOLE and Python deps via conda (conda-forge) for reproducible environment
-# Use mamba (installed in mambaforge) for speed
-RUN mamba install -y -c conda-forge \
-    python=3.11 \
+# Use conda to install Python 3.12 and HOLE + Python deps from conda-forge
+RUN conda update -n base -c defaults conda -y \
+ && conda install -y -c conda-forge \
+    python=3.12 \
     hole2 \
     matplotlib \
     pandas \
     ipywidgets \
     pexpect \
     jupyter \
-  && mamba clean -afy
+ && conda clean -afy
 
 ENV PATH="/opt/conda/bin:${PATH}"
 
