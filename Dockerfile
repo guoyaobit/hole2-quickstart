@@ -1,5 +1,5 @@
 # Multi-stage build: install deps and HOLE in builder, copy only runtime files into final image
-FROM python:3.12-slim AS builder
+FROM python:3.12-slim-bullseye AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -21,7 +21,7 @@ RUN wget -O /tmp/hole2.tar.gz http://www.holeprogram.org/downloads/2.2.005/hole2
  && rm -f /tmp/hole2.tar.gz
 
 # Final image: start from a clean slim image and copy only the runtime artifacts
-FROM python:3.12-slim
+FROM python:3.12-slim-bullseye
 
 ENV DEBIAN_FRONTEND=noninteractive
 
