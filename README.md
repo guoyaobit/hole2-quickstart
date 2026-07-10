@@ -3,14 +3,19 @@
 A minimal helper to run the HOLE pipeline per-PDB with per-file parameters and an interactive Jupyter UI.
 
 Requirements
-- HOLE toolchain installed and in PATH (hole, sph_process, qpt_conv, sos_triangle)
 - Miniconda / conda (recommended)
 - Python packages: matplotlib, pandas, ipywidgets (pexpect optional for qpt_conv)
+- HOLE toolchain (hole2) — available on conda-forge. Install via conda as below.
+
+Install HOLE (conda-forge)
+
+conda install -c conda-forge hole2
 
 Setup (conda)
 1. conda create -n hole2 python=3.11 -y
 2. conda activate hole2
 3. conda install matplotlib pandas ipywidgets -y
+4. conda install -c conda-forge hole2
 
 Usage (Jupyter notebook)
 1. Put your .pdb files in the repo root directory.
