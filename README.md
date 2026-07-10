@@ -39,3 +39,43 @@ Notes
 
 - Docker image installs the HOLE toolchain via conda (conda-forge) and exposes Jupyter on port 8888.
 - CI workflow builds and pushes a container image to ghcr.io/${{ github.repository }}:latest (see .github/workflows/docker-image.yml).
+
+Using the GHCR image
+
+Pull the latest image from GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/guoyaobit/hole2-quickstart:latest
+```
+
+Run the notebook (maps current dir, exposes Jupyter on 8888):
+
+```bash
+# Linux / macOS
+docker run --rm -p 8888:8888 -v "$(pwd)":/app ghcr.io/guoyaobit/hole2-quickstart:latest
+
+# Windows (PowerShell)
+docker run --rm -p 8888:8888 -v "${PWD}:/app" ghcr.io/guoyaobit/hole2-quickstart:latest
+```
+
+Run the processing script headless (process PDBs in the repo root and produce results):
+
+```bash
+docker run --rm -v "$(pwd)":/app -w /app ghcr.io/guoyaobit/hole2-quickstart:latest python run_holeprogram.py
+```
+
+Notes on authentication
+
+- Public images: no login required.
+- Private images: login with a PAT that has packages:read scope:
+
+```bash
+echo "YOUR_PAT" | docker login ghcr.io -u YOUR_GH_USERNAME --password-stdin
+```
+
+Tips
+
+- To run containers as your local user (avoid file permission issues), add `-u $(id -u):$(id -g)` on Linux.
+- Use the included docker-compose.yml for local development: `docker compose up --build`.
+- To run a detached container: `docker run -d --name hole2 -p 8888:8888 -v "$(pwd)":/app ghcr.io/guoyaobit/hole2-quickstart:latest`.
+- For versioned images, CI can tag images by git tag (see workflow) — otherwise `:latest` is used.
