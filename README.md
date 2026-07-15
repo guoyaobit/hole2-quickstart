@@ -1,10 +1,36 @@
-Overview
+hole2-quickstart — Reproducible HOLE pipeline and Jupyter-based analysis
 
-This repository provides tools to run the HOLE pipeline on PDB files and preview results in a Jupyter notebook.
+Abstract
 
-Quick options
+hole2-quickstart provides a compact, reproducible environment for running the HOLE pore-analysis pipeline on biomolecular structures (PDB). It combines the HOLE toolchain with Python-based post-processing and a Jupyter Lab interface to make routine analyses, visualization, and batch processing straightforward and auditable.
 
-- Recommended (Conda): create a conda environment and install hole2 from conda-forge (preferred):
+Background and motivation
+
+Automated pore profiling (HOLE) is widely used in structural biology to analyse ion channels and pores. However, installing HOLE, managing its binary dependencies, and integrating outputs into plotting and reporting workflows can be time-consuming. This project packages a reproducible Docker image, helper scripts, and a lightweight Jupyter-based UI to lower the barrier for reproducible HOLE analyses.
+
+Key features
+
+- Reproducible Docker image containing HOLE and Python tooling (Jupyter Lab) for immediate use.
+- run_holeprogram.py: a script to process multiple PDBs, generate hole_out.tsv and visualizations, and package outputs.
+- pdb_params.yaml: persistent per-PDB configuration including a __config__ section for global settings (e.g., HOLE_ROOT).
+- CI workflow that builds and publishes a GHCR image for reproducible deployment.
+
+Installation
+
+Two primary options are provided for users:
+
+1. Docker (recommended for reproducibility)
+
+Pull the container image from GHCR and run Jupyter Lab (maps current directory into /app):
+
+```bash
+docker pull ghcr.io/guoyaobit/hole2-quickstart:latest
+docker run --rm -p 8888:8888 -v "$(pwd)":/app ghcr.io/guoyaobit/hole2-quickstart:latest
+```
+
+2. Native (Conda)
+
+Create a conda environment and install HOLE from conda-forge when Docker cannot be used:
 
 ```bash
 conda create -n hole2 python=3.11 -y
@@ -13,82 +39,50 @@ conda install matplotlib pandas ipywidgets -y
 conda install -c conda-forge hole2
 ```
 
-- Docker (local / CI): a Dockerfile and docker-compose.yml are included for containerized runs. This is useful if you don't want to install HOLE locally or prefer reproducible environments.
+Usage
 
-  docker compose up --build
-  # Open http://localhost:8888 (Jupyter Lab) and open run.ipynb
-
-HOLE installation
-
-The preferred way to install the HOLE toolchain is via conda (conda-forge). The script install_hole.sh is kept as an alternative for systems without conda; it downloads the HOLE tarball and installs it under the user's home directory. Use one approach only — you do not need both.
-
-Usage (Jupyter notebook)
-
-1. Put your .pdb files in the repo root directory.
-2. Start Jupyter Lab and open run.ipynb (the containerized image also exposes Jupyter Lab on port 8888).
-3. Run the cell to launch the interactive UI (it calls run_notebook.launch()).
-4. Edit per-PDB CPOINT / CVECT values in the UI (saved in memory), then click "Process selected".
-
-What the UI does
-
-- Processes each selected PDB in its own folder using the HOLE pipeline.
-- Generates hole_out.tsv per result and attempts to create hole_plot.png (matplotlib). If matplotlib is unavailable, a CSV fallback hole_plot_data.csv is written and previewed.
-- Packs all result folders into a timestamped .zip and shows its path.
-
-Notes
-
-- Docker image contains the HOLE toolchain installed under /root/hole2 and exposes Jupyter Lab on port 8888.
-- CI workflow builds and pushes a container image to ghcr.io/${{ github.repository }}:latest (see .github/workflows/docker-image.yml).
-
-Using the GHCR image
-
-Pull the latest image from GitHub Container Registry:
-
-```bash
-docker pull ghcr.io/guoyaobit/hole2-quickstart:latest
-```
-
-Run Jupyter Lab (maps current dir, exposes Jupyter Lab on 8888):
-
-```bash
-# Linux / macOS
-docker run --rm -p 8888:8888 -v "$(pwd)":/app ghcr.io/guoyaobit/hole2-quickstart:latest
-
-# Windows (PowerShell)
-docker run --rm -p 8888:8888 -v "${PWD}:/app" ghcr.io/guoyaobit/hole2-quickstart:latest
-```
-
-Run the processing script headless (process PDBs in the repo root and produce results):
+1. Place one or more .pdb files in the repository root.
+2. Start Jupyter Lab (see above) and open run.ipynb.
+3. Use the notebook UI to set per-PDB parameters (CPOINT, CVECT) and process selected entries.
+4. For batch headless runs, use the command:
 
 ```bash
 docker run --rm -v "$(pwd)":/app -w /app ghcr.io/guoyaobit/hole2-quickstart:latest python run_holeprogram.py
 ```
 
-Notes on authentication
+Configuration and reproducibility
 
-- Public images: no login required.
-- Private images: login with a PAT that has packages:read scope:
+- The script detects HOLE installation using (in order): HOLE_ROOT environment variable, the __config__.HOLE_ROOT entry in pdb_params.yaml, several common install locations, and a default fallback.
+- To persist configuration for the repository, edit pdb_params.yaml and add a top-level __config__ section, for example:
 
-```bash
-echo "YOUR_PAT" | docker login ghcr.io -u YOUR_GH_USERNAME --password-stdin
+```yaml
+__config__:
+  HOLE_ROOT: /root/hole2
 ```
 
-Tips
+- The Docker image includes HOLE at /root/hole2 (or the location set in HOLE_ROOT) to simplify container runs.
 
-- The HOLE binaries are installed at /root/hole2/exe inside the container and are on PATH.
-- Different environments may install HOLE to different locations. The script looks for the HOLE installation root in this order:
-  1. HOLE_ROOT environment variable (set this to the installation root, e.g. /root/hole2)
-  2. Common locations: ~/hole2, /root/hole2, /opt/hole2, /usr/local/hole2
-  3. Falls back to ~/hole2 if none of the above contain the expected files
+Citation
 
-  Example (override location):
+If you use this software in a publication, please cite the repository (see CITATION.cff) and include the GHCR image tag used for reproducibility.
 
-  ```bash
-  # Linux / macOS
-  docker run --rm -e HOLE_ROOT=/root/hole2 -p 8888:8888 -v "$(pwd)":/app ghcr.io/guoyaobit/hole2-quickstart:latest
-  ```
+Example
 
-- To run containers as your local user (avoid file permission issues), add `-u $(id -u):$(id -g)` on Linux.
-- Use the included docker-compose.yml for local development: `docker compose up --build`.
-- To run a detached container: `docker run -d --name hole2 -p 8888:8888 -v "$(pwd)":/app ghcr.io/guoyaobit/hole2-quickstart:latest`.
-- For versioned images, CI can tag images by git tag (see workflow) — otherwise `:latest` is used.
+```bash
+# Pull image and start Jupyter Lab
+docker pull ghcr.io/guoyaobit/hole2-quickstart:latest
+docker run --rm -p 8888:8888 -v "$(pwd)":/app ghcr.io/guoyaobit/hole2-quickstart:latest
+# Open run.ipynb in Jupyter Lab and run the analysis.
+```
+
+Acknowledgements
+
+This project packages the HOLE toolset and Python analysis code into a reproducible environment. Thanks to contributors and the broader open-source ecosystem for tools and libraries used here.
+
+License
+
+See the LICENSE file for license details.
+
+Contact
+
+Repository: https://github.com/guoyaobit/hole2-quickstart

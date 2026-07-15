@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this software in a publication, please cite this repository."
+title: "hole2-quickstart: Reproducible HOLE pipeline with Jupyter-based analysis"
+authors:
+  - name: "guoyaobit"
+    orcid: ""
+version: "0.1.0"
+date-released: "2026-07-15"
+url: "https://github.com/guoyaobit/hole2-quickstart"
+doi: ""
+type: "software"
+keywords:
+  - HOLE
+  - pore analysis
+  - reproducibility
+  - jupyter
+preferred-citation: |
+  Guoyaobit (2026). hole2-quickstart: Reproducible HOLE pipeline with Jupyter-based analysis. GitHub. https://github.com/guoyaobit/hole2-quickstart
