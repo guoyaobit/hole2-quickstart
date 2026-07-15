@@ -2,7 +2,9 @@ cff-version: 1.2.0
 message: "If you use this software in a publication, please cite this repository."
 title: "hole2-quickstart: Reproducible HOLE pipeline with Jupyter-based analysis"
 authors:
-  - name: "guoyaobit"
+  - name: "郭尧 (Yao Guo)"
+    affiliation: "Institute of Automation, Chinese Academy of Sciences"
+    email: "guoyaobit@gmail.com"
     orcid: ""
 version: "0.1.0"
 date-released: "2026-07-15"
