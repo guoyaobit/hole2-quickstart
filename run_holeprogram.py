@@ -31,9 +31,21 @@ def run_hole(m_pdb, params=None):
     home_dir = os.path.expanduser("~")
     # Determine HOLE installation root. Priority:
     # 1) HOLE_ROOT environment variable
-    # 2) common install locations (/root/hole2, /opt/hole2, ~/hole2)
-    # 3) fallback to ~/hole2
+    # 2) __config__.HOLE_ROOT in pdb_params.yaml
+    # 3) common install locations (/root/hole2, /opt/hole2, ~/hole2)
+    # 4) fallback to ~/hole2
     hole_root = os.environ.get("HOLE_ROOT")
+
+    # check pdb_params config if available
+    try:
+        cfg = pdb_params.get('__config__') if isinstance(pdb_params, dict) else None
+    except Exception:
+        cfg = None
+    if not hole_root and cfg:
+        hr = cfg.get('HOLE_ROOT')
+        if hr:
+            hole_root = hr
+
     candidates = []
     if not hole_root:
         candidates = [
@@ -110,31 +122,76 @@ current_path = os.getcwd()
 config_path = os.path.join(current_path, "pdb_params.yaml")
 pdb_params = {}
 
-def save_pdb_params(params):
-    """Store params dict in-memory only (no YAML file). Updates module-level pdb_params."""
+def save_pdb_params(params=None):
+    """Store params dict in-memory and persist to config_path (YAML).
+
+    params can be a dict mapping pdb filenames/basenames to per-pdb config,
+    with an optional special key '__config__' for global settings (e.g., HOLE_ROOT).
+    If params is None, the current in-memory pdb_params is saved.
+    """
     global pdb_params
-    pdb_params = dict(params or {})
+    if params is not None:
+        pdb_params = dict(params)
+
+    # ensure parent dir exists
+    try:
+        with open(config_path, 'w') as fh:
+            if yaml:
+                yaml.safe_dump(pdb_params, fh)
+            else:
+                # fallback: write a repr if PyYAML isn't available
+                fh.write(repr(pdb_params))
+    except Exception:
+        # ignore disk write errors but keep in-memory
+        pass
     return pdb_params
 
 
 def load_pdb_params():
-    """Initialize in-memory pdb_params based on current directory PDB files.
+    """Load pdb_params and optional __config__ from config_path (YAML).
 
-    Preserves existing values for matching filenames or basenames if present in the current in-memory pdb_params.
+    Returns the in-memory pdb_params mapping each pdb filename (or basename)
+    to its params dict. Preserves existing in-memory values when possible.
     """
     global pdb_params
+    data = {}
+    if os.path.exists(config_path):
+        try:
+            if yaml:
+                with open(config_path, 'r') as fh:
+                    data = yaml.safe_load(fh) or {}
+            else:
+                # try eval as fallback (not recommended)
+                with open(config_path, 'r') as fh:
+                    data = eval(fh.read() or '{}')
+        except Exception:
+            data = {}
+
+    # separate config and per-pdb entries
+    cfg = data.get('__config__', {}) if isinstance(data, dict) else {}
+
     current = pdb_params if isinstance(pdb_params, dict) else {}
     files = list_pdb_files()
     new = {}
     for p in files:
-        if p in current:
-            new[p] = current[p]
+        # prefer explicit filename entry in file, then basename, then in-memory
+        if isinstance(data, dict) and p in data and isinstance(data[p], dict):
+            new[p] = data[p]
         else:
             base = os.path.splitext(p)[0]
-            if base in current:
+            if isinstance(data, dict) and base in data and isinstance(data[base], dict):
+                new[p] = data[base]
+            elif p in current:
+                new[p] = current[p]
+            elif base in current:
                 new[p] = current[base]
             else:
                 new[p] = {}
+
+    # attach config under special key
+    if cfg:
+        new['__config__'] = cfg
+
     pdb_params = new
     return pdb_params
 
