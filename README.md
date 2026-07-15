@@ -76,6 +76,18 @@ echo "YOUR_PAT" | docker login ghcr.io -u YOUR_GH_USERNAME --password-stdin
 Tips
 
 - The HOLE binaries are installed at /root/hole2/exe inside the container and are on PATH.
+- Different environments may install HOLE to different locations. The script looks for the HOLE installation root in this order:
+  1. HOLE_ROOT environment variable (set this to the installation root, e.g. /root/hole2)
+  2. Common locations: ~/hole2, /root/hole2, /opt/hole2, /usr/local/hole2
+  3. Falls back to ~/hole2 if none of the above contain the expected files
+
+  Example (override location):
+
+  ```bash
+  # Linux / macOS
+  docker run --rm -e HOLE_ROOT=/root/hole2 -p 8888:8888 -v "$(pwd)":/app ghcr.io/guoyaobit/hole2-quickstart:latest
+  ```
+
 - To run containers as your local user (avoid file permission issues), add `-u $(id -u):$(id -g)` on Linux.
 - Use the included docker-compose.yml for local development: `docker compose up --build`.
 - To run a detached container: `docker run -d --name hole2 -p 8888:8888 -v "$(pwd)":/app ghcr.io/guoyaobit/hole2-quickstart:latest`.

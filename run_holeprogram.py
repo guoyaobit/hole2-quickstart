@@ -29,10 +29,37 @@ def run_hole(m_pdb, params=None):
 
     # write hole.inp
     home_dir = os.path.expanduser("~")
+    # Determine HOLE installation root. Priority:
+    # 1) HOLE_ROOT environment variable
+    # 2) common install locations (/root/hole2, /opt/hole2, ~/hole2)
+    # 3) fallback to ~/hole2
+    hole_root = os.environ.get("HOLE_ROOT")
+    candidates = []
+    if not hole_root:
+        candidates = [
+            os.path.join(home_dir, 'hole2'),
+            '/root/hole2',
+            '/opt/hole2',
+            '/usr/local/hole2'
+        ]
+        found = None
+        for c in candidates:
+            radp = os.path.join(c, 'rad', 'simple.rad')
+            try:
+                if os.path.exists(radp):
+                    found = c
+                    break
+            except Exception:
+                continue
+        if found:
+            hole_root = found
+        else:
+            hole_root = os.path.join(home_dir, 'hole2')
+
     inp_path = os.path.join(folderpath, "hole.inp")
     with open(inp_path, "w") as file:
         file.write(f"coord ../{m_pdb}\n")
-        file.write(f"radius {home_dir}/hole2/rad/simple.rad\n")
+        file.write(f"radius {hole_root}/rad/simple.rad\n")
         file.write("sphpdb hole_out.sph\n")
         file.write("endrad 5.\n")
         # optional per-pdb parameters
