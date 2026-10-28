@@ -1,62 +1,155 @@
-- Miniconda / conda (recommended)
-- Python packages: matplotlib, pandas, ipywidgets, Jupyter
-- HOLE toolchain (hole2) — available on conda-forge. Install via conda as below.
+# HOLE2 Quickstart
 
-Install HOLE (conda-forge)
+Batch-process PDB structures with HOLE2 and inspect pore-radius profiles in Jupyter. The notebook provides per-file parameter editing, parallel processing, raw-result archives, and plot previews.
 
-conda install -c conda-forge hole2
+## Requirements and installation
 
-Setup (conda)
-1. conda create -n hole2 python=3.11 -y
-2. conda activate hole2
-3. conda install matplotlib pandas ipywidgets -y
-4. conda install -c conda-forge hole2
+Use Linux, or WSL with the Jupyter kernel running inside WSL. Python 3.11 or later and conda are recommended.
 
-Usage (Jupyter notebook)
-1. Put your .pdb files in the repo root directory.
-2. Start Jupyter and open run.ipynb.
-3. Run the cell to launch the interactive UI (it calls run_notebook.launch()).
-4. Edit per-PDB CPOINT / CVECT values in the UI (saved in memory), then click "Process selected".
+```bash
+git clone https://github.com/guoyaobit/hole2-quickstart.git
+cd hole2-quickstart
+conda create -n hole2 python=3.11 -y
+conda activate hole2
+conda install -c conda-forge hole2 matplotlib pandas ipywidgets jupyterlab -y
+command -v hole sph_process qpt_conv sos_triangle
+```
 
-What the UI does
-- Processes each selected PDB in its own folder using the HOLE pipeline.
-- Generates hole_out.tsv per result and attempts to create hole_plot.png (matplotlib). If matplotlib is unavailable, a CSV fallback hole_plot_data.csv is written and previewed.
-- Packs raw result folders into a timestamped .zip before plotting. The archive intentionally excludes the plots generated afterward.
-- Plots HOLE profile column 1 (channel coordinate) against column 2 (pore radius), both in Angstroms.
-- Repeated runs preserve existing output folders and use a unique suffix for new results.
-- All four tools must be in PATH: hole, sph_process, qpt_conv, sos_triangle. Commands have a 600-second timeout; errors identify the output and stderr logs in the result folder. qpt_conv does not require pexpect.
-- Radius data is discovered from the executable's installation prefix, the active conda/Python prefix, or ~/hole2/rad/simple.rad. To select a specific file, set HOLE_RADIUS to the full path of simple.rad before processing, for example in a notebook:
+All four executables must be available in `PATH`. A standalone HOLE2 installation also works if its executables and radius data are available. Native Windows toolchain support is not provided.
+
+`pexpect` is not required: input is passed directly to `qpt_conv`. The notebook requires pandas and ipywidgets. If matplotlib cannot be imported, plotting falls back to CSV.
+
+## Radius data
+
+HOLE requires a van der Waals radius file, usually `simple.rad`. The wrapper searches in this order:
+
+1. `HOLE_RADIUS`, if set. An invalid explicit path raises an error instead of falling back.
+2. The installation prefix inferred from `hole`, followed by `CONDA_PREFIX` and the Python environment prefix. Common `rad` and `share` locations are checked, including a search for `simple.rad` under each prefix's `share` directory.
+3. `~/hole2/rad/simple.rad`.
+
+To select a file explicitly, set an absolute path before processing:
+
+```bash
+export HOLE_RADIUS=/absolute/path/to/simple.rad
+jupyter lab run.ipynb
+```
+
+Alternatively, set it in a notebook cell before processing:
 
 ```python
 import os
-os.environ['HOLE_RADIUS'] = '/path/to/simple.rad'
+os.environ['HOLE_RADIUS'] = '/absolute/path/to/simple.rad'
 ```
 
-The supported toolchain environment is Linux (including WSL with the notebook kernel running in WSL). No native Windows toolchain support is implied.
+## Notebook workflow
 
-Run regression checks without installing HOLE:
+1. Place files with the lowercase `.pdb` extension in the repository root.
+2. From that directory, activate the environment and launch the notebook:
 
-```sh
+   ```bash
+   conda activate hole2
+   jupyter lab run.ipynb
+   ```
+
+3. Run the notebook cell to launch the interface.
+4. Choose a PDB in the parameter editor, enter optional `CPOINT` and `CVECT` values, and click **Save**. Repeat for other files as needed.
+5. Select files in **To process** and click **Process selected**. All discovered files are selected initially.
+6. Inspect the result folders, ZIP path, and plot previews below the interface.
+
+Parameters are held in kernel memory only. **Save** does not write a configuration file; restarting the kernel loses those edits. The supplied `pdb_params.yaml` is an example and is not loaded by the current implementation.
+
+### Parameters
+
+| Parameter | Meaning | Accepted value |
+| --- | --- | --- |
+| `CPOINT` | Starting point for the channel search | Three finite numbers, such as `124.459, 125.13, 127.348` |
+| `CVECT` | Channel search direction | Three finite numbers forming a nonzero vector, such as `0, 0, 1` |
+
+Comma-separated and space-separated inputs are accepted. Leave an input blank to omit that card and use HOLE's default behavior. Validation runs when processing starts.
+
+The generated input fixes `ENDRAD` at `5.0` Angstroms and surface dot density at `15`.
+
+## Processing and outputs
+
+Each PDB is processed in its own folder. For `sample.pdb`, the first run uses `sample/`. If that path exists, a new folder such as `sample_<unique_suffix>/` is created. Existing results are preserved, including when a later run fails.
+
+Multiple PDBs use a process pool with a worker count defaulting to the smaller of the file count and CPU count. The notebook callback waits for the batch to finish.
+
+| Output | Contents |
+| --- | --- |
+| Input PDB copy | Structure used by the run |
+| `hole.inp` | Generated HOLE control cards |
+| `hole_out.txt` | HOLE standard output, including the profile table |
+| `hole_out.tsv` | Sampled and midpoint profile rows; whitespace-separated |
+| `hole_out.sph` | Sphere-center and radius data |
+| `dotsurface.qpt` | Dot surface generated by `sph_process` |
+| `dotsurface.vmd_plot` | Dot surface converted for VMD |
+| `solid_surface.sos` | Intermediate solid-surface data |
+| `solid_surface.vmd_plot` | Triangulated surface for VMD |
+| `*.log` | Standard-output and standard-error logs from external tools |
+| `hole_plot.png` | Pore-radius plot generated after archiving |
+| `hole_plot_data.csv` | Fallback when matplotlib cannot be imported |
+
+### Archive order
+
+**The notebook creates the ZIP before generating plots.**
+
+After all selected PDBs finish processing, their folders are packed into a timestamped ZIP in the input directory. Plotting then saves PNG or fallback CSV files in those folders. The ZIP intentionally excludes the plots generated afterward.
+
+### Plot interpretation
+
+| HOLE profile column | Meaning | Plot use |
+| --- | --- | --- |
+| 1 | Channel coordinate: sphere-center projection along the channel direction | Horizontal axis, in Angstroms |
+| 2 | Pore radius | Vertical axis, in Angstroms |
+| 3 | Center-line distance coordinate | Not used by the current plot |
+| 4 | Cumulative quantity used for conductance estimation | Not used by the current plot |
+
+Column 1 already contains HOLE's channel projection. The wrapper does not apply `CVECT` to it again.
+
+## Command-line and Python use
+
+Process all PDB files in the current directory and archive the results:
+
+```bash
+python run_holeprogram.py
+```
+
+The command-line entry point uses default HOLE parameters and does not generate plots. For explicit parameters, worker control, or plotting, use the Python API:
+
+```python
+import run_holeprogram as rh
+
+rh.save_pdb_params({'sample.pdb': {'CVECT': [0, 0, 1]}})
+folders = rh.process_pdbs(['sample.pdb'], workers=1)
+archive = rh.make_zip_for_folders(folders)  # Archive before plotting.
+for folder in folders:
+    rh.plot_tsv(folder)
+print(archive)
+```
+
+The input directory is captured when `run_holeprogram` is imported. Start the notebook or Python process in the directory containing the PDB files.
+
+## Troubleshooting
+
+| Message or behavior | Action |
+| --- | --- |
+| `Required executable not found in PATH` | Activate the HOLE environment and check all four executable paths. |
+| `Cannot find simple.rad` | Set `HOLE_RADIUS` to the full path of an existing radius file. |
+| Invalid `CPOINT` or `CVECT` | Supply three finite numbers; the direction vector must be nonzero. |
+| A tool failed or timed out | Inspect the output and stderr logs identified by the error. Each external command has a 600-second timeout. |
+| `qpt_conv produced no VMD file` | Inspect `qpt_conv.log` and `qpt_conv.stderr.log` in the new result folder. |
+| No profile rows or invalid profile data | Inspect `hole_out.txt`, `hole.stderr.log`, and `hole.inp`. |
+| Plot warning after processing | Raw results have already been archived. Inspect the displayed traceback and profile data. |
+| A batch stops after one PDB fails | Inspect that run's logs. Successful folders may remain, but archive creation does not proceed. |
+| Parameters disappear after a kernel restart | Re-enter and save them; persistence is in memory only. |
+
+## Regression checks
+
+Run from the repository root:
+
+```bash
 python -m unittest discover -s tests -v
 ```
 
-=======
-- HOLE toolchain installed and in PATH (hole, sph_process, qpt_conv, sos_triangle)
-- Miniconda / conda (recommended)
-- Python packages: matplotlib, pandas, ipywidgets, Jupyter
-
-Setup (conda)
-1. conda create -n hole2 python=3.11 -y
-2. conda activate hole2
-3. conda install matplotlib pandas ipywidgets -y
-
-Usage (Jupyter notebook)
-1. Put your .pdb files in the repo root directory.
-2. Start Jupyter and open run.ipynb.
-3. Run the cell to launch the interactive UI (it calls run_notebook.launch()).
-4. Edit per-PDB CPOINT / CVECT values in the UI (saved in memory), then click "Process selected".
-
-What the UI does
-- Processes each selected PDB in its own folder using the HOLE pipeline.
-- Generates hole_out.tsv per result and attempts to create hole_plot.png (matplotlib). If matplotlib is unavailable, a CSV fallback hole_plot_data.csv is written and previewed.
-- Packs raw results before plotting; generated plots remain in the result folders and are not included in that archive.
+Tests simulate external commands and cover profile parsing, radius-file discovery, parameter validation, failure and timeout reporting, preservation of previous results, missing conversion output, and ZIP-before-plot behavior. They do not require HOLE and do not replace an end-to-end run with the real toolchain.
