@@ -1,26 +1,91 @@
 import os
 import subprocess
 import shutil
-try:
-    import pexpect
-except Exception:
-    pexpect = None
+import sys
+import math
+import tempfile
+from pathlib import Path
 try:
     import yaml
 except Exception:
     yaml = None
 # from multiprocessing import Pool
+
+def resolve_radius_file():
+    """Find the radius data in an explicit, conda, or standalone installation."""
+    explicit = os.environ.get('HOLE_RADIUS')
+    if explicit:
+        path = Path(explicit).expanduser().resolve()
+        if not path.is_file():
+            raise FileNotFoundError(f'HOLE_RADIUS is not a file: {path}')
+        return path
+
+    prefixes = [Path(sys.prefix)]
+    if os.environ.get('CONDA_PREFIX'):
+        prefixes.insert(0, Path(os.environ['CONDA_PREFIX']))
+    executable = shutil.which('hole')
+    if executable:
+        prefixes.insert(0, Path(executable).resolve().parent.parent)
+    for prefix in prefixes:
+        for relative in ('share/hole2/rad/simple.rad', 'share/hole2/simple.rad',
+                         'share/hole/rad/simple.rad', 'rad/simple.rad'):
+            path = prefix / relative
+            if path.is_file():
+                return path.resolve()
+        share = prefix / 'share'
+        if share.is_dir():
+            for path in sorted(share.rglob('simple.rad')):
+                if path.is_file():
+                    return path.resolve()
+    path = Path.home() / 'hole2' / 'rad' / 'simple.rad'
+    if path.is_file():
+        return path.resolve()
+    raise FileNotFoundError('Cannot find simple.rad; set HOLE_RADIUS to its full path.')
+
+
+def validate_params(params):
+    result = {}
+    for key in ('CPOINT', 'CVECT'):
+        value = params.get(key)
+        if value is None:
+            continue
+        try:
+            if isinstance(value, (str, bytes)) or len(value) != 3:
+                raise ValueError()
+            vector = [float(x) for x in value]
+            if not all(math.isfinite(x) for x in vector):
+                raise ValueError()
+            if key == 'CVECT' and not any(vector):
+                raise ValueError()
+        except (ValueError, TypeError, OverflowError) as exc:
+            raise ValueError(f'{key} must contain three finite numbers; CVECT must be nonzero') from exc
+        result[key] = vector
+    return result
+
+
 def run_hole(m_pdb, params=None):
-    """Process a single PDB file. Creates a folder named after the pdb basename
-    and runs the HOLE pipeline inside it. Returns the folder path on success."""
-    if params is None:
-        params = {}
+    """Process one PDB, preserving previous results in an existing folder.
+
+    A unique suffix is used on reruns. Returns the new result folder on success.
+    """
+    params = validate_params(params or {})
+    if os.path.basename(m_pdb) != m_pdb or not m_pdb.endswith('.pdb'):
+        raise ValueError('Expected a .pdb filename in the input directory')
+    src = os.path.join(current_path, m_pdb)
+    if not os.path.isfile(src):
+        raise FileNotFoundError(src)
+    executables = {}
+    for name in ('hole', 'sph_process', 'qpt_conv', 'sos_triangle'):
+        executables[name] = shutil.which(name)
+        if executables[name] is None:
+            raise FileNotFoundError(f'Required executable not found in PATH: {name}')
+    radius_file = resolve_radius_file()
     foldername = os.path.splitext(m_pdb)[0]
     folderpath = os.path.join(current_path, foldername)
-    # ensure clean folder
-    if os.path.exists(folderpath):
-        shutil.rmtree(folderpath)
-    os.mkdir(folderpath)
+    try:
+        os.mkdir(folderpath)
+    except FileExistsError:
+        folderpath = tempfile.mkdtemp(prefix=foldername + '_', dir=current_path)
 
     # copy pdb into folder
     src = os.path.join(current_path, m_pdb)
@@ -28,52 +93,47 @@ def run_hole(m_pdb, params=None):
     shutil.copy(src, dst)
 
     # write hole.inp
-    home_dir = os.path.expanduser("~")
     inp_path = os.path.join(folderpath, "hole.inp")
     with open(inp_path, "w") as file:
-        file.write(f"coord ../{m_pdb}\n")
-        file.write(f"radius {home_dir}/hole2/rad/simple.rad\n")
+        file.write(f"coord {os.path.basename(m_pdb)}\n")
+        file.write(f"radius {radius_file}\n")
         file.write("sphpdb hole_out.sph\n")
         file.write("endrad 5.\n")
         # optional per-pdb parameters
         cpoint = params.get("CPOINT")
         if cpoint:
-            try:
-                file.write("CPOINT " + " ".join(str(float(x)) for x in cpoint) + "\n")
-            except Exception:
-                file.write("CPOINT " + " ".join(map(str, cpoint)) + "\n")
+            file.write("CPOINT " + " ".join(map(str, cpoint)) + "\n")
         cvect = params.get("CVECT")
         if cvect:
-            try:
-                file.write("CVECT " + " ".join(str(float(x)) for x in cvect) + "\n")
-            except Exception:
-                file.write("CVECT " + " ".join(map(str, cvect)) + "\n")
+            file.write("CVECT " + " ".join(map(str, cvect)) + "\n")
 
     # run commands with working directory set to folderpath
-    def run(cmd, **kwargs):
-        return subprocess.run(cmd, shell=True, check=True, text=True, cwd=folderpath, **kwargs)
+    def run(name, args=(), input_text='', output=None):
+        log_path = os.path.join(folderpath, output or name + '.log')
+        error_path = os.path.join(folderpath, name + '.stderr.log')
+        with open(log_path, 'w') as log, open(error_path, 'w') as errors:
+            try:
+                subprocess.run([executables[name], *args], input=input_text,
+                               stdout=log, stderr=errors, check=True,
+                               text=True, cwd=folderpath, timeout=600)
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+                raise RuntimeError(f'{name} failed or timed out; see {log_path} and {error_path}') from exc
 
-    run('hole < hole.inp > hole_out.txt')
-    run('egrep "mid-|sampled" hole_out.txt > hole_out.tsv')
-    run('sph_process -dotden 15 -color hole_out.sph dotsurface.qpt')
-
-    # qpt_conv expects interactive input; run via pexpect in folderpath
-    # Note: pexpect.spawn's cwd parameter isn't supported on Windows; change dir before spawning
-    prev_cwd = os.getcwd()
-    try:
-        os.chdir(folderpath)
-        process = pexpect.spawn('qpt_conv')
-        process.write('D\n')
-        process.write('\n')
-        process.write('\n')
-        process.write('1\n')
-        process.wait()
-        process.close()
-    finally:
-        os.chdir(prev_cwd)
-
-    run('sph_process -sos -dotden 15 -color hole_out.sph solid_surface.sos')
-    run('sos_triangle -s < solid_surface.sos > solid_surface.vmd_plot')
+    with open(inp_path) as file:
+        run('hole', input_text=file.read(), output='hole_out.txt')
+    with open(os.path.join(folderpath, 'hole_out.txt')) as source:
+        rows = [line for line in source if 'mid-' in line or 'sampled' in line]
+    if not rows:
+        raise ValueError(f'No HOLE profile rows found; see {folderpath}/hole_out.txt')
+    with open(os.path.join(folderpath, 'hole_out.tsv'), 'w') as file:
+        file.writelines(rows)
+    run('sph_process', ['-dotden', '15', '-color', 'hole_out.sph', 'dotsurface.qpt'])
+    run('qpt_conv', input_text='D\ndotsurface.qpt\ndotsurface.vmd_plot\n1\n')
+    if not os.path.isfile(os.path.join(folderpath, 'dotsurface.vmd_plot')):
+        raise RuntimeError(f'qpt_conv produced no VMD file; see {folderpath}/qpt_conv.log')
+    run('sph_process', ['-sos', '-dotden', '15', '-color', 'hole_out.sph', 'solid_surface.sos'])
+    with open(os.path.join(folderpath, 'solid_surface.sos')) as file:
+        run('sos_triangle', ['-s'], input_text=file.read(), output='solid_surface.vmd_plot')
 
     return folderpath
 
@@ -182,91 +242,37 @@ def make_zip_for_folders(folders, out_name=None):
 
 
 def plot_tsv(folderpath, cvect=None, out_name=None, show_plot=False):
-    """Read hole_out.tsv in folderpath, compute abscissa and plot radius vs abscissa.
+    """Plot HOLE's channel coordinate (column 1) against radius (column 2).
 
-    - cvect: iterable of 3 numbers (channel vector). If provided, abscissa = dot(center, cvect).
-      Otherwise abscissa = cumulative distance along centre-line.
-    - out_name: optional PNG filename (written inside folderpath). If omitted, uses 'hole_plot.png'.
-    - show_plot: if True and matplotlib backend supports it, show interactively (not used here).
-
-    Returns path to saved PNG and the (x,y) arrays.
+    cvect is retained for API compatibility: HOLE already applies CVECT when
+    producing column 1, so the profile must not be projected a second time.
+    Returns the saved image/CSV path and the (coordinate, radius) arrays.
     """
-    import math
     try:
         import matplotlib
-        try:
-            matplotlib.use('Agg')
-        except Exception:
-            # ignore if backend can't be set
-            pass
-    except Exception:
-        matplotlib = None
-    try:
+        matplotlib.use('Agg')
         import matplotlib.pyplot as plt
-    except Exception:
+    except ImportError:
         plt = None
 
     tsv = os.path.join(folderpath, 'hole_out.tsv')
-    if not os.path.exists(tsv):
-        raise FileNotFoundError(f"{tsv} not found")
-
-    centers = []
-    radii = []
-    with open(tsv, 'r') as fh:
-        for line in fh:
-            line = line.strip()
-            if not line:
+    xs, radii = [], []
+    with open(tsv) as fh:
+        for line_number, line in enumerate(fh, 1):
+            if not line.strip():
                 continue
-            # extract floats from the line
-            parts = []
-            for tok in line.split():
-                try:
-                    parts.append(float(tok))
-                except Exception:
-                    # ignore non-numeric tokens
-                    pass
-            if len(parts) < 4:
-                continue
-            x, y, z, r = parts[0], parts[1], parts[2], parts[3]
-            centers.append((x, y, z))
-            radii.append(r)
-
-    if not centers:
-        raise ValueError(f"No numeric data parsed from {tsv}")
-
-    if cvect:
-        # normalize cvect
-        try:
-            vx, vy, vz = float(cvect[0]), float(cvect[1]), float(cvect[2])
-            norm = math.sqrt(vx*vx + vy*vy + vz*vz)
-            if norm == 0:
-                raise ValueError('CVECT has zero length')
-            vx, vy, vz = vx/norm, vy/norm, vz/norm
-            xs = [c[0]*vx + c[1]*vy + c[2]*vz for c in centers]
-            xlabel = 'Channel coordinate (dot(center, CVECT))'
-        except Exception:
-            # fallback to cumulative distance
-            xs = []
-            total = 0.0
-            prev = centers[0]
-            xs.append(0.0)
-            for c in centers[1:]:
-                d = math.sqrt((c[0]-prev[0])**2 + (c[1]-prev[1])**2 + (c[2]-prev[2])**2)
-                total += d
-                xs.append(total)
-                prev = c
-            xlabel = 'Distance along centre-line (Angstrom)'
-    else:
-        xs = []
-        total = 0.0
-        prev = centers[0]
-        xs.append(0.0)
-        for c in centers[1:]:
-            d = math.sqrt((c[0]-prev[0])**2 + (c[1]-prev[1])**2 + (c[2]-prev[2])**2)
-            total += d
-            xs.append(total)
-            prev = c
-        xlabel = 'Distance along centre-line (Angstrom)'
+            try:
+                fields = line.split()
+                coordinate, radius = float(fields[0]), float(fields[1])
+                if not math.isfinite(coordinate) or not math.isfinite(radius):
+                    raise ValueError('non-finite profile value')
+            except (ValueError, IndexError) as exc:
+                raise ValueError(f'Invalid HOLE profile row at {tsv}:{line_number}') from exc
+            xs.append(coordinate)
+            radii.append(radius)
+    if not xs:
+        raise ValueError(f'No numeric data parsed from {tsv}')
+    xlabel = 'Channel coordinate (Angstrom)'
 
     # plotting
     if out_name is None:

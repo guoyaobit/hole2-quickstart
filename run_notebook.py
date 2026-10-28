@@ -148,6 +148,7 @@ def launch():
             try:
                 rh.save_pdb_params(cfg)
                 folders = rh.process_pdbs(targets)
+                # Deliberately archive raw results before generating plots.
                 zip_path = rh.make_zip_for_folders(folders)
                 # for each folder, attempt to plot and display the result
                 plots = []
