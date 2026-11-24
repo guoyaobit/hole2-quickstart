@@ -4,8 +4,8 @@ import shutil
 import sys
 import math
 import tempfile
-from contextlib import ExitStack
 from pathlib import Path
+from qpt_control import run_qpt_conv
 try:
     import yaml
 except Exception:
@@ -109,15 +109,12 @@ def run_hole(m_pdb, params=None):
             file.write("CVECT " + " ".join(map(str, cvect)) + "\n")
 
     # run commands with working directory set to folderpath
-    def run(name, args=(), input_text='', output=None, stdin_path=None):
+    def run(name, args=(), input_text='', output=None):
         log_path = os.path.join(folderpath, output or name + '.log')
         error_path = os.path.join(folderpath, name + '.stderr.log')
-        with open(log_path, 'w') as log, open(error_path, 'w') as errors, ExitStack() as stack:
-            input_options = {'input': input_text}
-            if stdin_path is not None:
-                input_options = {'stdin': stack.enter_context(open(stdin_path))}
+        with open(log_path, 'w') as log, open(error_path, 'w') as errors:
             try:
-                subprocess.run([executables[name], *args], **input_options,
+                subprocess.run([executables[name], *args], input=input_text,
                                stdout=log, stderr=errors, check=True,
                                text=True, cwd=folderpath, timeout=600)
             except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
@@ -132,12 +129,7 @@ def run_hole(m_pdb, params=None):
     with open(os.path.join(folderpath, 'hole_out.tsv'), 'w') as file:
         file.writelines(rows)
     run('sph_process', ['-dotden', '15', '-color', 'hole_out.sph', 'dotsurface.qpt'])
-    # qpt_conv calls SYSTEM after its first read. Some Fortran runtimes lose
-    # buffered pipe input there; a seekable control file preserves later replies.
-    qpt_input = os.path.join(folderpath, 'qpt_conv.inp')
-    with open(qpt_input, 'w') as file:
-        file.write('D\ndotsurface.qpt\ndotsurface.vmd_plot\n1\n')
-    run('qpt_conv', stdin_path=qpt_input)
+    run_qpt_conv([executables['qpt_conv']], folderpath)
     if not os.path.isfile(os.path.join(folderpath, 'dotsurface.vmd_plot')):
         raise RuntimeError(f'qpt_conv produced no VMD file; see {folderpath}/qpt_conv.log')
     run('sph_process', ['-sos', '-dotden', '15', '-color', 'hole_out.sph', 'solid_surface.sos'])

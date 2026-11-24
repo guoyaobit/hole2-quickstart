@@ -34,11 +34,15 @@ with tempfile.TemporaryDirectory() as directory:
         for log in sorted(workspace.rglob('*')):
             if log.is_file() and (log.suffix == '.log' or log.name == 'hole_out.txt'):
                 print(f'--- {log.name} ---', flush=True)
-                print(log.read_text(errors='replace')[-12000:], flush=True)
+                with log.open('rb') as stream:
+                    stream.seek(max(log.stat().st_size - 12000, 0))
+                    print(stream.read().decode(errors='replace'), flush=True)
         print('Result files:', [str(p.relative_to(workspace)) for p in workspace.rglob('*')], flush=True)
         raise
     assert not result['plot_errors'], result['plot_errors']
     assert result['plots'] and Path(result['plots'][0]).is_file()
+    for name in ('dotsurface.vmd_plot', 'solid_surface.vmd_plot'):
+        assert (Path(result['folders'][0]) / name).stat().st_size > 0, name
     _, (coordinate, radius) = rh.plot_tsv(result['folders'][0])
     assert len(coordinate) > 10 and all(0 < value < 10 for value in radius)
     with zipfile.ZipFile(result['archive']) as archive:

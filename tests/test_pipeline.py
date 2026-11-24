@@ -21,6 +21,7 @@ class PipelineTests(unittest.TestCase):
         self.radius.write_text('radius data')
         (self.root / 'sample.pdb').write_text('ATOM\n')
         self.patch(rh, 'current_path', str(self.root))
+        self.patch(rh, 'run_qpt_conv', self.fake_conversion)
 
     def patch(self, target, name, value):
         patcher = patch.object(target, name, value)
@@ -38,14 +39,13 @@ class PipelineTests(unittest.TestCase):
             (folder / 'hole_out.sph').write_text('sphere data')
         elif name == 'sph_process':
             (folder / command[-1]).write_text('surface data')
-        elif name == 'qpt_conv':
-            self.assertNotIn('input', kwargs)
-            self.assertTrue(kwargs['stdin'].seekable())
-            self.assertEqual(kwargs['stdin'].read(), 'D\ndotsurface.qpt\ndotsurface.vmd_plot\n1\n')
-            (folder / 'dotsurface.vmd_plot').write_text('draw delete all\n')
         elif name == 'sos_triangle':
             kwargs['stdout'].write('draw triangle\n')
         return subprocess.CompletedProcess(command, 0)
+
+    def fake_conversion(self, command, folder):
+        self.assertEqual(Path(command[0]).name, 'qpt_conv')
+        (Path(folder) / 'dotsurface.vmd_plot').write_text('draw delete all\n')
 
     def test_pipeline_preserves_old_results_and_archives_before_plot(self):
         old = self.root / 'sample'
@@ -125,12 +125,10 @@ class PipelineTests(unittest.TestCase):
                     rh.run_hole('sample.pdb')
 
     def test_missing_conversion_output_is_reported(self):
-        def command(args, **kwargs):
-            if args[0] != 'qpt_conv':
-                return self.fake_command(args, **kwargs)
         with patch.object(rh.shutil, 'which', side_effect=lambda name: name), \
              patch.object(rh, 'resolve_radius_file', return_value=self.radius), \
-             patch.object(rh.subprocess, 'run', side_effect=command):
+             patch.object(rh.subprocess, 'run', side_effect=self.fake_command), \
+             patch.object(rh, 'run_qpt_conv', return_value=None):
             with self.assertRaisesRegex(RuntimeError, 'no VMD file'):
                 rh.run_hole('sample.pdb')
 

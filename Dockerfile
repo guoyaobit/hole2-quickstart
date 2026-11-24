@@ -16,7 +16,7 @@ ENV PATH=/opt/conda/bin:$PATH \
     HOME=/tmp
 
 WORKDIR /opt/hole2
-COPY --chown=$MAMBA_USER:$MAMBA_USER run_holeprogram.py run_notebook.py colab_support.py run.ipynb colab.ipynb LICENSE ./
+COPY --chown=$MAMBA_USER:$MAMBA_USER run_holeprogram.py run_notebook.py qpt_control.py colab_support.py run.ipynb colab.ipynb LICENSE ./
 COPY --chown=$MAMBA_USER:$MAMBA_USER docker/ ./docker/
 COPY --chown=$MAMBA_USER:$MAMBA_USER tests/ ./tests/
 
