@@ -2,6 +2,26 @@
 
 Batch-process PDB structures with HOLE2 and inspect pore-radius profiles in Jupyter. The notebook provides per-file parameter editing, parallel processing, raw-result archives, and plot previews.
 
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/guoyaobit/hole2-quickstart/blob/main/colab.ipynb)
+
+## Google Colab
+
+Open the badge above and use a standard **CPU** runtime. Run the cells in order:
+
+1. Clone the code and install HOLE 2.3.1. The installer verifies the micromamba 2.10.0 download, installs only HOLE's native toolchain, and keeps Colab's existing Python kernel.
+2. Upload PDB files, or optionally authorize a Google Drive mount and import PDBs from a folder there.
+3. Edit the per-file `parameters` dictionary and `selected_files` list in the notebook. Parameter keys must match the imported filenames shown by the upload cell.
+4. Run the batch and inspect the radius plots.
+5. Download the raw-result ZIP, or optionally export the ZIP and separate PNG/CSV plots to Google Drive.
+
+Inputs and results use `/content/hole2-data`, separate from the cloned code. Imports normalize PDB filenames to simple ASCII names and add suffixes on collision; existing uploads and result folders are preserved. Colab processing is sequential. It uses standard notebook cells and Colab's upload/download controls rather than the desktop ipywidgets editor.
+
+The raw ZIP is created **before plotting**, as in the desktop notebook. It excludes the plots generated afterward. Drive export saves that ZIP plus the separate plots in a new directory. A plot error does not remove the raw ZIP.
+
+Runtime files and parameter values are temporary. Download or export results before the runtime is deleted. Save a notebook copy to retain edited parameter code. Each fresh runtime must rerun setup. Setup reuses an existing code clone and HOLE installation; to fetch application updates, start a fresh runtime and reopen the Colab notebook. A GPU is not needed by this pipeline.
+
+The Colab installer targets Linux x86_64 and requires network access to GitHub and conda-forge. CI checks the notebook's Python cells and tests the installer and full HOLE pipeline on an upstream gramicidin example under Linux/Python 3.12. Browser uploads, Drive authorization, and the Google-managed Colab runtime still require an interactive Colab check.
+
 ## Requirements and installation
 
 Use Linux, or WSL with the Jupyter kernel running inside WSL. Python 3.11 or later and conda are recommended.
