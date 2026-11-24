@@ -39,7 +39,9 @@ class PipelineTests(unittest.TestCase):
         elif name == 'sph_process':
             (folder / command[-1]).write_text('surface data')
         elif name == 'qpt_conv':
-            self.assertEqual(kwargs['input'], 'D\ndotsurface.qpt\ndotsurface.vmd_plot\n1\n')
+            self.assertNotIn('input', kwargs)
+            self.assertTrue(kwargs['stdin'].seekable())
+            self.assertEqual(kwargs['stdin'].read(), 'D\ndotsurface.qpt\ndotsurface.vmd_plot\n1\n')
             (folder / 'dotsurface.vmd_plot').write_text('draw delete all\n')
         elif name == 'sos_triangle':
             kwargs['stdout'].write('draw triangle\n')
