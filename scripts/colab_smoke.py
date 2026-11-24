@@ -27,7 +27,16 @@ with tempfile.TemporaryDirectory() as directory:
     source.write_bytes(example)
     workspace = root / 'data'
     imported = import_pdbs([source], workspace)
-    result = run_batch(workspace, selected=imported)
+    try:
+        result = run_batch(workspace, selected=imported)
+    except Exception:
+        # Temporary workspaces disappear on failure; emit native-tool diagnostics.
+        for log in sorted(workspace.rglob('*')):
+            if log.is_file() and (log.suffix == '.log' or log.name == 'hole_out.txt'):
+                print(f'--- {log.name} ---', flush=True)
+                print(log.read_text(errors='replace')[-12000:], flush=True)
+        print('Result files:', [str(p.relative_to(workspace)) for p in workspace.rglob('*')], flush=True)
+        raise
     assert not result['plot_errors'], result['plot_errors']
     assert result['plots'] and Path(result['plots'][0]).is_file()
     _, (coordinate, radius) = rh.plot_tsv(result['folders'][0])
