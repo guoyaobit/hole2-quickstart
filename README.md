@@ -19,6 +19,87 @@ All four executables must be available in `PATH`. A standalone HOLE2 installatio
 
 `pexpect` is not required: input is passed directly to `qpt_conv`. The notebook requires pandas and ipywidgets. If matplotlib cannot be imported, plotting falls back to CSV.
 
+## Docker deployment and updates
+
+Docker packages the Linux HOLE toolchain and the notebook dependencies together. Use Docker Engine with Compose on Linux, or Docker Desktop in Linux-container mode on Windows/macOS. The default target is `linux/amd64`; set `HOLE_PLATFORM=linux/arm64` to attempt an ARM build (not validated here).
+
+### First deployment
+
+Clone the repository and run these commands from its root. On Linux/WSL:
+
+```bash
+mkdir -p data
+cp .env.example .env
+```
+
+Edit `.env`, setting `HOLE_UID` and `HOLE_GID` to the output of `id -u` and `id -g`. Use a non-root account that owns the data directory. On Windows PowerShell with Docker Desktop, create `data` with `New-Item -ItemType Directory -Force data` and copy the example using `Copy-Item .env.example .env`; the default UID/GID can generally be used for Docker Desktop bind mounts.
+
+```bash
+docker compose config --quiet
+docker compose build --pull
+docker compose up -d --wait --wait-timeout 120
+docker compose logs hole2
+```
+
+Open `http://127.0.0.1:8888/lab/tree/run.ipynb` and log in using the token printed in the container logs. Authentication remains enabled. If `HOLE_PORT` is changed, use that host port in the URL. Put your PDB files in `data/`, open `run.ipynb`, and run its launcher cell.
+
+The container runs as a non-root user. The host data directory must already exist and be writable by the configured UID/GID; otherwise startup fails with a permissions error.
+
+| Setting in `.env` | Default | Purpose |
+| --- | --- | --- |
+| `HOLE_DATA_DIR` | `./data` | Host directory mounted read/write at `/data` |
+| `HOLE_PORT` | `8888` | Host port, bound to `127.0.0.1` |
+| `HOLE_UID`, `HOLE_GID` | `57439` | Container user and group IDs |
+| `HOLE_IMAGE_TAG` | `local` | Tag of the locally built application image |
+| `HOLE_PLATFORM` | `linux/amd64` | Container platform |
+
+Application modules are built into `/opt/hole2`, while `/data` contains the PDB files, result folders, ZIP files, plots, and an initial notebook copy. The input working directory is `/data`. Image rebuilds do not replace data or an existing `run.ipynb`; the existing launcher imports the updated modules from the image. Notebook parameters remain in memory and are lost when the container/kernel restarts.
+
+### Update application code
+
+Finish processing before updating: recreating the service stops its active kernel and any running batch. Back up `data/` as needed, then:
+
+```bash
+git pull --ff-only
+docker compose build --pull
+docker compose up -d --no-build --force-recreate --wait --wait-timeout 120
+```
+
+Reopen the notebook and run its launcher cell again. A restart alone does not load updated code into the image; rebuild and recreate the service. `docker compose pull` does not update this application because no prebuilt registry image is published by this repository.
+
+To refresh the conda dependencies as well, change `environment.yml` and rebuild with `docker compose build --pull --no-cache`. Python and HOLE versions are fixed in that file; the other packages are constrained to major versions, not a complete dependency lock.
+
+### Roll back an image
+
+Before rebuilding, preserve the working image (the example assumes `HOLE_IMAGE_TAG=local`):
+
+```bash
+docker image tag hole2-quickstart:local hole2-quickstart:rollback
+```
+
+To restore it, set `HOLE_IMAGE_TAG=rollback` in `.env` and run:
+
+```bash
+docker compose up -d --no-build --force-recreate --wait --wait-timeout 120
+```
+
+This restores application code and dependencies; it does not restore earlier data contents. Set the tag back to `local` before the next normal build.
+
+### Operations and checks
+
+```bash
+docker compose ps
+docker compose logs --tail=100 hole2
+docker compose exec hole2 python /opt/hole2/docker/check_environment.py
+docker compose exec hole2 python -m unittest discover -s /opt/hole2/tests -v
+docker compose run --rm --no-deps hole2 python /opt/hole2/run_holeprogram.py
+docker compose down
+```
+
+The one-off `run` command processes all PDB files in `data/` with default parameters and creates a ZIP without plots. Run it when the notebook is idle. `down` removes the service container and network; the bind-mounted host data remains.
+
+Image builds check the four executables and radius data and run the regression suite with notebook dependencies installed. The GitHub Actions Docker workflow also starts Jupyter, checks health, and recreates the container to check data persistence. It does not publish images or establish scientific correctness of real PDB outputs.
+
 ## Radius data
 
 HOLE requires a van der Waals radius file, usually `simple.rad`. The wrapper searches in this order:
@@ -58,6 +139,8 @@ os.environ['HOLE_RADIUS'] = '/absolute/path/to/simple.rad'
 
 Parameters are held in kernel memory only. **Save** does not write a configuration file; restarting the kernel loses those edits. The supplied `pdb_params.yaml` is an example and is not loaded by the current implementation.
 
+**Refresh PDB list** updates both file selectors and reloads the parameter fields. The current editing selection is retained if its file still exists; an empty directory clears the selection and fields. **Clear** removes the selected file's saved parameters and clears both input fields.
+
 ### Parameters
 
 | Parameter | Meaning | Accepted value |
@@ -95,6 +178,8 @@ Multiple PDBs use a process pool with a worker count defaulting to the smaller o
 **The notebook creates the ZIP before generating plots.**
 
 After all selected PDBs finish processing, their folders are packed into a timestamped ZIP in the input directory. Plotting then saves PNG or fallback CSV files in those folders. The ZIP intentionally excludes the plots generated afterward.
+
+Automatic ZIP names include microseconds and gain a numeric suffix if a name already exists. Existing archives are never overwritten. Passing an explicit existing `out_name` to `make_zip_for_folders()` raises `FileExistsError`.
 
 ### Plot interpretation
 
@@ -153,3 +238,5 @@ python -m unittest discover -s tests -v
 ```
 
 Tests simulate external commands and cover profile parsing, radius-file discovery, parameter validation, failure and timeout reporting, preservation of previous results, missing conversion output, and ZIP-before-plot behavior. They do not require HOLE and do not replace an end-to-end run with the real toolchain.
+
+Archive tests also verify that name collisions preserve existing ZIP files. Notebook tests exercise real ipywidgets callbacks for refresh and Clear/Save; install the notebook dependencies above to run them. Those UI tests are skipped when the dependencies are unavailable.

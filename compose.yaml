@@ -1,0 +1,19 @@
+services:
+  hole2:
+    image: hole2-quickstart:${HOLE_IMAGE_TAG:-local}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    platform: ${HOLE_PLATFORM:-linux/amd64}
+    user: "${HOLE_UID:-57439}:${HOLE_GID:-57439}"
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 30s
+    ports:
+      - "127.0.0.1:${HOLE_PORT:-8888}:8888"
+    volumes:
+      - type: bind
+        source: ${HOLE_DATA_DIR:-./data}
+        target: /data
+        bind:
+          create_host_path: false

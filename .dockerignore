@@ -1,0 +1,12 @@
+# Include only application/build files; never upload observation data or secrets.
+**
+!Dockerfile
+!environment.yml
+!run_holeprogram.py
+!run_notebook.py
+!run.ipynb
+!LICENSE
+!docker/
+!docker/*.py
+!tests/
+!tests/*.py

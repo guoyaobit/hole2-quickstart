@@ -56,6 +56,11 @@ def launch():
             sel_multi.value = tuple(pdb_files)
         except Exception:
             pass
+        previous = sel.value
+        names = sorted(cfg.keys())
+        sel.options = names
+        sel.value = previous if previous in cfg else (names[0] if names else None)
+        on_select()
         with out_df:
             clear_output()
             display(make_df(cfg))
@@ -85,6 +90,7 @@ def launch():
 
     def on_select(change=None):
         name = sel.value
+        status.value = ''
         if not name:
             cpoint_in.value = ''
             cvect_in.value = ''
@@ -129,8 +135,7 @@ def launch():
         # clear parameters but keep the pdb key (yaml should only include current pdbs)
         cfg[name] = {}
         rh.save_pdb_params(cfg)
-        sel.options = sorted(cfg.keys())
-        sel.value = name
+        on_select()
         status.value = '<b style="color:green">Cleared</b>'
         with out_df:
             clear_output()

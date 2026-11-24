@@ -224,13 +224,29 @@ def process_pdbs(pdb_list, workers=None):
 
 
 def make_zip_for_folders(folders, out_name=None):
-    """Create a zip containing the given folders. Returns zip path."""
+    """Create a new ZIP without overwriting an existing archive.
+
+    Automatic names gain a suffix on collision; explicit existing names raise
+    FileExistsError. Returns the new archive path.
+    """
     from datetime import datetime
     import zipfile
-    if out_name is None:
-        out_name = datetime.now().strftime('%Y-%m-%d-%H-%M-%S') + '.zip'
+    automatic_name = out_name is None
+    if automatic_name:
+        stem = datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
+        out_name = stem + '.zip'
     out_path = os.path.join(current_path, out_name)
-    with zipfile.ZipFile(out_path, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
+    collision = 0
+    while True:
+        try:
+            archive = zipfile.ZipFile(out_path, 'x', compression=zipfile.ZIP_DEFLATED)
+            break
+        except FileExistsError:
+            if not automatic_name:
+                raise
+            collision += 1
+            out_path = os.path.join(current_path, f'{stem}_{collision}.zip')
+    with archive as zf:
         for folder in folders:
             base = os.path.basename(folder)
             for root, dirs, files in os.walk(folder):

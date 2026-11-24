@@ -1,4 +1,5 @@
 import ast
+import datetime
 import os
 from pathlib import Path
 import subprocess
@@ -75,6 +76,35 @@ class PipelineTests(unittest.TestCase):
                  if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
                  and node.func.attr in ('make_zip_for_folders', 'plot_tsv')}
         self.assertLess(calls['make_zip_for_folders'], calls['plot_tsv'])
+
+    def test_automatic_zip_collision_preserves_both_archives(self):
+        folder = self.root / 'results'
+        folder.mkdir()
+        data = folder / 'value.txt'
+        data.write_text('first')
+
+        class FixedDateTime(datetime.datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return cls(2026, 11, 24, 12, 0, 0)
+
+        with patch('datetime.datetime', FixedDateTime):
+            first = rh.make_zip_for_folders([str(folder)])
+            original = Path(first).read_bytes()
+            data.write_text('second')
+            second = rh.make_zip_for_folders([str(folder)])
+        self.assertNotEqual(first, second)
+        self.assertEqual(Path(first).read_bytes(), original)
+        for path, expected in ((first, b'first'), (second, b'second')):
+            with zipfile.ZipFile(path) as archive:
+                self.assertEqual(archive.read('results/value.txt'), expected)
+
+    def test_explicit_zip_name_never_overwrites_existing_file(self):
+        existing = self.root / 'archive.zip'
+        existing.write_bytes(b'keep existing contents')
+        with self.assertRaises(FileExistsError):
+            rh.make_zip_for_folders([], out_name='archive.zip')
+        self.assertEqual(existing.read_bytes(), b'keep existing contents')
 
     def test_missing_tool_does_not_create_result_folder(self):
         with patch.object(rh.shutil, 'which', return_value=None):

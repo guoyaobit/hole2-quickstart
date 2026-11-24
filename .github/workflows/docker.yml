@@ -1,0 +1,32 @@
+name: Docker deployment checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Compose
+        run: docker compose config --quiet
+      - name: Build image and run bundled regression tests
+        run: docker build --tag hole2-quickstart:ci .
+      - name: Smoke-test persistent workspace and Jupyter health
+        shell: bash
+        run: |
+          mkdir -p data
+          export HOLE_UID="$(id -u)" HOLE_GID="$(id -g)" HOLE_IMAGE_TAG=ci
+          trap 'docker compose logs; docker compose down' EXIT
+          docker compose up --detach --no-build --wait --wait-timeout 120
+          test -s data/run.ipynb
+          docker compose exec -T hole2 python /opt/hole2/docker/check_environment.py
+          docker compose exec -T hole2 python -c "from pathlib import Path; Path('/data/persistence-check.txt').write_text('preserved')"
+          docker compose up --detach --no-build --force-recreate --wait --wait-timeout 120
+          test "$(cat data/persistence-check.txt)" = preserved
