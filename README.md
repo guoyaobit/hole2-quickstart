@@ -32,12 +32,12 @@ cd hole2-quickstart
 conda create -n hole2 python=3.11 -y
 conda activate hole2
 conda install -c conda-forge hole2 matplotlib pandas ipywidgets jupyterlab -y
-command -v hole sph_process qpt_conv sos_triangle
+command -v hole sph_process sos_triangle
 ```
 
-All four executables must be available in `PATH`. A standalone HOLE2 installation also works if its executables and radius data are available. Native Windows toolchain support is not provided.
+All three executables must be available in `PATH`. A standalone HOLE2 installation also works if its executables and radius data are available. Native Windows toolchain support is not provided.
 
-`pexpect` is not required: the wrapper drives `qpt_conv` through a standard-library pseudo-terminal, replying to each prompt individually. Its stdout and stderr are combined in `qpt_conv.log`. The notebook requires pandas and ipywidgets. If matplotlib cannot be imported, plotting falls back to CSV.
+QPT-to-VMD conversion uses the bundled Python converter, including support for both byte orders, HOLE surface colors, and line/point geometry. The legacy interactive `qpt_conv` and `pexpect` are not required. The notebook requires pandas and ipywidgets. If matplotlib cannot be imported, plotting falls back to CSV.
 
 ## Docker deployment and updates
 
@@ -118,7 +118,7 @@ docker compose down
 
 The one-off `run` command processes all PDB files in `data/` with default parameters and creates a ZIP without plots. Run it when the notebook is idle. `down` removes the service container and network; the bind-mounted host data remains.
 
-Image builds check the four executables and radius data and run the regression suite with notebook dependencies installed. The GitHub Actions Docker workflow also starts Jupyter, checks health, and recreates the container to check data persistence. It does not publish images or establish scientific correctness of real PDB outputs.
+Image builds check the three executables and radius data and run the regression suite with notebook dependencies installed. The GitHub Actions Docker workflow also starts Jupyter, checks health, and recreates the container to check data persistence. It does not publish images or establish scientific correctness of real PDB outputs.
 
 ## Radius data
 
@@ -239,11 +239,11 @@ The input directory is captured when `run_holeprogram` is imported. Start the no
 
 | Message or behavior | Action |
 | --- | --- |
-| `Required executable not found in PATH` | Activate the HOLE environment and check all four executable paths. |
+| `Required executable not found in PATH` | Activate the HOLE environment and check all three executable paths. |
 | `Cannot find simple.rad` | Set `HOLE_RADIUS` to the full path of an existing radius file. |
 | Invalid `CPOINT` or `CVECT` | Supply three finite numbers; the direction vector must be nonzero. |
 | A tool failed or timed out | Inspect the output and stderr logs identified by the error. Each external command has a 600-second timeout. |
-| `qpt_conv` failed or produced no VMD file | Inspect `qpt_conv.log` in the new result folder. |
+| QPT conversion failed | Inspect `dotsurface.qpt`, `sph_process.log`, and the displayed conversion error. |
 | No profile rows or invalid profile data | Inspect `hole_out.txt`, `hole.stderr.log`, and `hole.inp`. |
 | Plot warning after processing | Raw results have already been archived. Inspect the displayed traceback and profile data. |
 | A batch stops after one PDB fails | Inspect that run's logs. Successful folders may remain, but archive creation does not proceed. |

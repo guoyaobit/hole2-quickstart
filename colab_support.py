@@ -14,7 +14,7 @@ import run_holeprogram as rh
 MAMBA_URL = ('https://github.com/mamba-org/micromamba-releases/releases/download/'
              '2.10.0-0/micromamba-linux-64')
 MAMBA_SHA256 = '701f39c06f8e6a670a0e186c8479b9e5c0502a2f0cda6cef65d83bdd2875e8bd'
-TOOLS = ('hole', 'sph_process', 'qpt_conv', 'sos_triangle')
+TOOLS = ('hole', 'sph_process', 'sos_triangle')
 
 
 def _download_micromamba(destination):

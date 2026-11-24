@@ -5,7 +5,7 @@
 !run_holeprogram.py
 !run_notebook.py
 !colab_support.py
-!qpt_control.py
+!qpt_convert.py
 !colab.ipynb
 !run.ipynb
 !LICENSE

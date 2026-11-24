@@ -5,7 +5,7 @@ from run_holeprogram import resolve_radius_file
 
 
 def main():
-    for tool in ('hole', 'sph_process', 'qpt_conv', 'sos_triangle'):
+    for tool in ('hole', 'sph_process', 'sos_triangle'):
         executable = shutil.which(tool)
         if executable is None:
             raise SystemExit(f'Missing executable: {tool}')

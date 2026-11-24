@@ -5,7 +5,7 @@ import sys
 import math
 import tempfile
 from pathlib import Path
-from qpt_control import run_qpt_conv
+from qpt_convert import convert_qpt_to_vmd
 try:
     import yaml
 except Exception:
@@ -76,7 +76,7 @@ def run_hole(m_pdb, params=None):
     if not os.path.isfile(src):
         raise FileNotFoundError(src)
     executables = {}
-    for name in ('hole', 'sph_process', 'qpt_conv', 'sos_triangle'):
+    for name in ('hole', 'sph_process', 'sos_triangle'):
         executables[name] = shutil.which(name)
         if executables[name] is None:
             raise FileNotFoundError(f'Required executable not found in PATH: {name}')
@@ -129,9 +129,10 @@ def run_hole(m_pdb, params=None):
     with open(os.path.join(folderpath, 'hole_out.tsv'), 'w') as file:
         file.writelines(rows)
     run('sph_process', ['-dotden', '15', '-color', 'hole_out.sph', 'dotsurface.qpt'])
-    run_qpt_conv([executables['qpt_conv']], folderpath)
+    convert_qpt_to_vmd(os.path.join(folderpath, 'dotsurface.qpt'),
+                       os.path.join(folderpath, 'dotsurface.vmd_plot'))
     if not os.path.isfile(os.path.join(folderpath, 'dotsurface.vmd_plot')):
-        raise RuntimeError(f'qpt_conv produced no VMD file; see {folderpath}/qpt_conv.log')
+        raise RuntimeError(f'QPT conversion produced no VMD file in {folderpath}')
     run('sph_process', ['-sos', '-dotden', '15', '-color', 'hole_out.sph', 'solid_surface.sos'])
     with open(os.path.join(folderpath, 'solid_surface.sos')) as file:
         run('sos_triangle', ['-s'], input_text=file.read(), output='solid_surface.vmd_plot')
