@@ -4,7 +4,10 @@ COPY --chown=$MAMBA_USER:$MAMBA_USER environment.yml /tmp/environment.yml
 RUN micromamba install --yes --name base --strict-channel-priority --file /tmp/environment.yml \
     && micromamba clean --all --yes
 
-ENV PYTHONPATH=/opt/hole2 \
+# docker exec bypasses micromamba's entrypoint activation. Make the base
+# environment tools available to both the main process and exec commands.
+ENV PATH=/opt/conda/bin:$PATH \
+    PYTHONPATH=/opt/hole2 \
     PYTHONUNBUFFERED=1 \
     MPLBACKEND=Agg \
     MPLCONFIGDIR=/tmp/hole2-matplotlib \
