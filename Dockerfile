@@ -1,5 +1,7 @@
 FROM mambaorg/micromamba:2.10.0
 
+LABEL org.opencontainers.image.source="https://github.com/guoyaobit/hole2-quickstart"
+
 COPY --chown=$MAMBA_USER:$MAMBA_USER environment.yml /tmp/environment.yml
 RUN micromamba install --yes --name base --strict-channel-priority --file /tmp/environment.yml \
     && micromamba clean --all --yes

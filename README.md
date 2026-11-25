@@ -41,7 +41,7 @@ QPT-to-VMD conversion uses the bundled Python converter, including support for b
 
 ## Docker deployment and updates
 
-Docker packages the Linux HOLE toolchain and the notebook dependencies together. Use Docker Engine with Compose on Linux, or Docker Desktop in Linux-container mode on Windows/macOS. The default target is `linux/amd64`; set `HOLE_PLATFORM=linux/arm64` to attempt an ARM build (not validated here).
+Docker packages the Linux HOLE toolchain and the notebook dependencies together. Use Docker Engine with Compose on Linux, or Docker Desktop in Linux-container mode on Windows/macOS. The default target is `linux/amd64`; set `HOLE_PLATFORM=linux/arm64` to attempt an ARM build (not validated here). A checked `linux/amd64` image is published at `ghcr.io/guoyaobit/hole2-quickstart:latest` after successful pushes to `main`; each published build also has a `sha-<commit>` tag.
 
 ### First deployment
 
@@ -85,7 +85,7 @@ docker compose build --pull
 docker compose up -d --no-build --force-recreate --wait --wait-timeout 120
 ```
 
-Reopen the notebook and run its launcher cell again. A restart alone does not load updated code into the image; rebuild and recreate the service. `docker compose pull` does not update this application because no prebuilt registry image is published by this repository.
+Reopen the notebook and run its launcher cell again. A restart alone does not load updated code into the image; rebuild and recreate the service. The default Compose configuration builds a local image, so `docker compose pull` does not update that local deployment. The separate GHCR image can be updated with `docker pull ghcr.io/guoyaobit/hole2-quickstart:latest`.
 
 To refresh the conda dependencies as well, change `environment.yml` and rebuild with `docker compose build --pull --no-cache`. Python and HOLE versions are fixed in that file; the other packages are constrained to major versions, not a complete dependency lock.
 
