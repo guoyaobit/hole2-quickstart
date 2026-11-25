@@ -118,6 +118,11 @@ def launch():
             entry['CVECT'] = cv
         # only update entry for existing pdbs
         if name in cfg:
+            try:
+                entry = rh.validate_params(entry)
+            except ValueError as exc:
+                status.value = f'<b style="color:red">{exc}</b>'
+                return
             cfg[name] = entry
             rh.save_pdb_params(cfg)
             status.value = '<b style="color:green">Saved</b>'

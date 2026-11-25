@@ -40,6 +40,7 @@ class NotebookTests(unittest.TestCase):
         self.batch = next(w for w in widgets if isinstance(w, notebook.widgets.SelectMultiple))
         self.cpoint = self.find('CPOINT (csv)')
         self.cvect = self.find('CVECT (csv)')
+        self.status = next(w for w in widgets if isinstance(w, notebook.widgets.HTML))
 
     def patcher(self, item):
         item.start()
@@ -94,6 +95,13 @@ class NotebookTests(unittest.TestCase):
         self.assertEqual(notebook.rh.pdb_params['old.pdb'], {})
         self.click('Save')
         self.assertEqual(notebook.rh.pdb_params['old.pdb'], {})
+
+    def test_invalid_parameters_are_rejected_on_save(self):
+        self.editor.value = 'old.pdb'
+        self.cvect.value = '0, 0, 0'
+        self.click('Save')
+        self.assertIn('CVECT must be nonzero', self.status.value)
+        self.assertEqual(notebook.rh.pdb_params['old.pdb']['CVECT'], [0, 0, 1])
 
 
 if __name__ == '__main__':

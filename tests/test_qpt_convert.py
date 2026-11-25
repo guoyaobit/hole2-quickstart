@@ -47,6 +47,13 @@ class QptConversionTests(unittest.TestCase):
         self.assertIn('draw point {1.000 2.000 3.000}', self.output.read_text())
         self.assertNotIn('hello', self.output.read_text())
 
+    def test_color_record_does_not_replace_previous_position(self):
+        self.source.write_bytes(b''.join(vector(values) for values in
+                                         [(2, 10, 20, 30), (1, 4, 0, 0), (3, 11, 21, 31)]))
+        convert_qpt_to_vmd(self.source, self.output)
+        self.assertIn('draw line {11.000 21.000 31.000} {10.000 20.000 30.000} width 1',
+                      self.output.read_text())
+
     def test_invalid_and_truncated_files_are_rejected(self):
         valid = vector((4, 1, 2, 3))
         examples = [b'', b'not qpt', valid[:-1], valid[:-4] + struct.pack('<I', 12),

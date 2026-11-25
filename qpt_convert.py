@@ -77,7 +77,8 @@ def convert_qpt_to_vmd(source, destination):
                         before = ' '.join(f'{value:.3f}' for value in previous)
                         output.write(f'draw line {{{xyz}}} {{{before}}} width 1\n')
                     objects += 1
-                previous = vector[1:]
+                if kind in (2, 3, 4):
+                    previous = vector[1:]
         if not objects:
             raise ValueError('QPT file contains no drawable points or lines')
     return destination
